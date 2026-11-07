@@ -20,16 +20,20 @@ import time
 
 import numpy as np
 
-from engine import NR, default_rules
+from engine import NR, load_rules
 
-R = default_rules()
+R = load_rules(os.environ.get("RULES") or None)
 J = R.jokers[0]
+FIXED = R.trump_mode == "fixed"
+TS = [0] if FIXED else list(range(36))  # 'trump card' index; a single dummy value when the trump suit is fixed
 N = 4
 C = 36
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def trump_of(t):
+    if FIXED:
+        return R.trump_fixed_suit
     return -1 if t == J else t // NR
 
 
@@ -47,8 +51,9 @@ def winners_for_t(t):
     valid = np.ones((C,) * 4, bool)
     for a, b in itertools.combinations(range(4), 2):
         valid &= grids[a] != grids[b]
-    for g in grids:
-        valid &= g != t
+    if not FIXED:
+        for g in grids:
+            valid &= g != t
     c0 = grids[0]
     lead_suit = np.where(c0 == J, called_suit(T), suit[c0])
     out = []
@@ -57,10 +62,13 @@ def winners_for_t(t):
         for j, g in enumerate(grids):
             s_, r_ = suit[g], rank[g]
             k = np.where(s_ == T, 101 + r_, np.where(s_ == lead_suit, 11 + r_, 0))
-            if joker_high:
-                k = np.where(g == J, 1000, k)
-            else:
-                k = np.where(g == J, (100 if called_suit(T) == T else 10) if j == 0 else 0, k)
+            if joker_high or (j == 0 and not R.joker_lead_low):
+                k = np.where(g == J, 1000, k)  # (a leading joker is always HIGH if lead-low is not allowed)
+            elif j == 0:
+                k = np.where(g == J, 100 if called_suit(T) == T else 10, k)
+            elif R.joker_follow_low != "as_card":
+                k = np.where(g == J, 0, k)
+            # else: follower joker 'as card' keeps the key of the printed card (e.g. 7S)
             keys.append(k)
         out.append(np.argmax(np.stack(keys), axis=0).astype(np.int8))
     return valid, out[0], out[1]
@@ -105,9 +113,9 @@ SEQS = seq_list()
 
 def run(iters=60, verbose=True):
     t0 = time.time()
-    sigma = np.full((N, C, C, N_HIST), 0.5)  # sigma[i][c, t, h] = P(bid 1)
+    sigma = np.full((N, C, len(TS), N_HIST), 0.5)  # sigma[i][c, t, h] = P(bid 1)
     cache = []
-    for t in range(C):
+    for t in TS:
         valid, wh, wl = winners_for_t(t)
         idx = np.nonzero(valid)
         cards = [x.astype(np.int64) for x in idx]
@@ -120,9 +128,9 @@ def run(iters=60, verbose=True):
         print(f"winner tables built in {time.time() - t0:.1f}s, {n_deals} deals", flush=True)
     history = []
     for it in range(iters):
-        br_ev = np.zeros((N, C, C, N_HIST, 2))
+        br_ev = np.zeros((N, C, len(TS), N_HIST, 2))
         cur_ev = np.zeros(N)
-        for t in range(C):
+        for t in range(len(TS)):
             cards, wh, wl, jh = cache[t]
             fac = {}
             for j in range(4):
@@ -200,8 +208,9 @@ def main(argv=None):
     sigma, br_ev, hist, cache = run(a.iters)
     out = os.path.join(ROOT, "runs", "one_card")
     os.makedirs(out, exist_ok=True)
-    np.save(os.path.join(out, "sigma.npy"), sigma)
-    with open(os.path.join(out, "history.json"), "w") as f:
+    tag = "_fixed" if FIXED else ""
+    np.save(os.path.join(out, f"sigma{tag}.npy"), sigma)
+    with open(os.path.join(out, f"history{tag}.json"), "w") as f:
         json.dump(hist, f)
 
 

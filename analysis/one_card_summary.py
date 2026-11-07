@@ -37,7 +37,30 @@ def classes(t):
     return out
 
 
+def main_fixed():
+    sig = np.load(os.path.join(ROOT, "runs", "one_card", "sigma_fixed.npy"))
+    hist = json.load(open(os.path.join(ROOT, "runs", "one_card", "history_fixed.json")))
+    last = hist[-1]
+    T = 2
+    cols = [(0, ()), (1, (0,)), (1, (1,)), (2, (0, 0)), (2, (0, 1)), (2, (1, 0)), (2, (1, 1)), (3, (1, 1, 0)), (3, (1, 1, 1))]
+    names = ["место 1", "место 2 после 0", "место 2 после 1", "место 3 после 0,0", "место 3 после 0,1",
+             "место 3 после 1,0", "место 3 после 1,1", "сдающий после 1,1,0", "сдающий после 1,1,1"]
+    print(f"EV/место: {np.round(last['ev'], 2).tolist()} ; exploitability: {np.round(last['exploit'], 4).tolist()}\n")
+    print("| карта | " + " | ".join(names) + " |")
+    print("|---" * (len(names) + 1) + "|")
+    rows = [("джокер (7♠)", [J])]
+    for r in reversed(range(9)):
+        rows.append((f"козырь ♦{RN[r]}", [T * NR + r]))
+    for r, lab in ((8, "A"), (7, "K"), (6, "Q")):
+        rows.append((f"некозырь {lab}", [su * NR + r for su in range(4) if su != T]))
+    rows.append(("некозырь ≤J", [su * NR + r for su in range(4) if su != T for r in range(6) if su * NR + r != J]))
+    for lab, cs in rows:
+        print(f"| {lab} | " + " | ".join(f"{np.mean(sig[seat, cs, 0, hid(h)]):.2f}" for seat, h in cols) + " |")
+
+
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "fixed":
+        return main_fixed()
     sig = np.load(os.path.join(ROOT, "runs", "one_card", "sigma.npy"))
     hist = json.load(open(os.path.join(ROOT, "runs", "one_card", "history.json")))
     last = hist[-1]

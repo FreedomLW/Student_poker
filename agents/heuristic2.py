@@ -94,20 +94,19 @@ def ev_best_bid(legal, est, k, rules, dark=False, sd=None):
     return best
 
 
-_SIG = None
+_SIG = {}
 
 
-def _one_card_sigma():
-    global _SIG
-    if _SIG is None:
+def _one_card_sigma(fixed=False):
+    if fixed not in _SIG:
         try:
             import os
             import numpy as np
-            _SIG = np.load(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                        "runs", "one_card", "sigma.npy"))
+            _SIG[fixed] = np.load(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                               "runs", "one_card", "sigma_fixed.npy" if fixed else "sigma.npy"))
         except Exception:
-            _SIG = False
-    return _SIG
+            _SIG[fixed] = False
+    return _SIG[fixed]
 
 
 DARK_BID = {0: 2, 1: 2, 2: 2, 3: 2}  # refined after experiments (see INSIGHTS.md)
@@ -140,12 +139,13 @@ def smart_bid(x, me, hand, legal, calib=None):
     seat = (me - x.first_seat) % n
     order = [(x.first_seat + j) % n for j in range(n)]
     prev = [x.bids[q] for q in order[:seat]]
-    if k == 1 and n == 4 and x.trump_card >= 0 and not x.dark and hand:
-        sig = _one_card_sigma()
+    fixed = r.trump_mode == "fixed"
+    if k == 1 and n == 4 and (fixed or x.trump_card >= 0) and not x.dark and hand:
+        sig = _one_card_sigma(fixed)
         if sig is not False and sig is not None:
             c = hand.bit_length() - 1
             hid = (1 << len(prev)) - 1 + int("".join(map(str, prev)) or "0", 2)
-            b = 1 if sig[seat, c, x.trump_card, hid] > 0.5 else 0
+            b = 1 if sig[seat, c, 0 if fixed else x.trump_card, hid] > 0.5 else 0
             a = BID_OFFSET + b
             return a if a in legal else legal[0]
     if x.dark:
