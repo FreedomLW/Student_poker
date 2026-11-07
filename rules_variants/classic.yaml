@@ -1,0 +1,42 @@
+# Одесский покер — правила. Источник истины для движка (engine/rules.py).
+# Все спорные пункты вынесены во флаги. Таблица вариантов — в README.md.
+
+n_players: 4                 # 3..6
+deck:
+  ranks: [6, 7, 8, 9, 10, J, Q, K, A]   # 36 карт, 4 масти
+  jokers: ["7S"]             # карты, работающие как джокер (0..2). [] = без джокера. Вариант: ["6S"]
+
+schedule:
+  # max = 36 // n_players
+  ascending: true            # 1,2,...,max-1
+  max_repeats: null          # сколько раздач по max подряд (null = n_players). max входит сюда, а не в ascending.
+  descending: true           # max-1,...,1
+  special:                   # спецраунды после основной части (все по max карт)
+    - {type: notrump, count: null}   # бескозырка; count null = n_players
+    - {type: dark, count: null}      # тёмная
+
+trump:
+  mode: turned
+  joker_turned: notrump      # открыт джокер -> бескозырка
+  no_cards_left: notrump     # карт не осталось -> бескозырка. Вариант: dealer_last (козырь = масть последней карты сдающего)
+
+bidding:
+  dealer_hook: true          # последний заказывающий не может сделать сумму заказов == n_cards
+  dark_sees_trump: true      # в тёмной заказывают до просмотра своих карт, но открытый козырь видят
+
+play:
+  must_follow: true          # обязательно в масть
+  must_trump: true           # нет масти -> обязательно козырь
+  joker_any_time: true       # джокер можно сыграть в любой момент (даже имея масть)
+  joker_lead_low: true       # заходя с джокера, можно объявить его младшим (младшая карта названной масти)
+  joker_follow_low: discard
+  joker_lead_demand_highest: true   # заход джокером «старший» + масть X: остальные обязаны дать СТАРШУЮ карту масти X
+                                    # (нет X -> козырь, нет козыря -> любая). false = просто ходить в масть X.
+
+scoring:
+  exact_per_trick: 10        # заказ выполнен ровно: 10 × заказ
+  pass_exact: 5              # пас (0) выполнен: 5
+  over_per_trick: 1          # перебор: 1 за каждую лишнюю взятку (только за лишние)
+  under_per_trick: -10       # недобор: -10 × ...
+  under_mode: bid            # bid: -10×заказ; missing: -10×(заказ-взятки)
+  dark_multiplier: 2         # тёмная: очки ×2

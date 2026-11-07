@@ -1,5 +1,7 @@
 # Одесский покер — правила. Источник истины для движка (engine/rules.py).
 # Все спорные пункты вынесены во флаги. Таблица вариантов — в README.md.
+# ДЕФОЛТ = правила нашей компании (2026-11-07): козырь всегда бубны, джокер 7♠, заход джокером — только «старшую масти X»,
+# в ответ джокер играется как старший джокер или как обычная 7♠. Прежний «классический» вариант: rules_variants/classic.yaml
 
 n_players: 4                 # 3..6
 deck:
@@ -11,12 +13,13 @@ schedule:
   ascending: true            # 1,2,...,max-1
   max_repeats: null          # сколько раздач по max подряд (null = n_players). max входит сюда, а не в ascending.
   descending: true           # max-1,...,1
-  special:                   # спецраунды после основной части (все по max карт)
-    - {type: notrump, count: null}   # бескозырка; count null = n_players
-    - {type: dark, count: null}      # тёмная
+  special:                   # спецраунды после основной части (все по max карт); count null = n_players
+    - {type: dark, count: null}      # тёмная (при фиксированном козыре бескозырок нет; вариант: {type: notrump, count: null})
 
 trump:
-  joker_turned: notrump      # открыт джокер -> бескозырка
+  mode: fixed                # fixed: козырь всегда fixed_suit; turned: следующая открытая карта после раздачи
+  fixed_suit: D              # бубны
+  joker_turned: notrump      # (для mode: turned) открыт джокер -> бескозырка
   no_cards_left: notrump     # карт не осталось -> бескозырка. Вариант: dealer_last (козырь = масть последней карты сдающего)
 
 bidding:
@@ -27,7 +30,8 @@ play:
   must_follow: true          # обязательно в масть
   must_trump: true           # нет масти -> обязательно козырь
   joker_any_time: true       # джокер можно сыграть в любой момент (даже имея масть)
-  joker_lead_low: true       # заходя с джокера, можно объявить его младшим (младшая карта названной масти)
+  joker_lead_low: false      # заходя с джокера, можно объявить его младшим (младшая карта названной масти). У нас: нельзя
+  joker_follow_low: as_card  # в ответ «не джокером»: as_card = как обычная 7♠ (может взять!), discard = гарантированный сброс
   joker_lead_demand_highest: true   # заход джокером «старший» + масть X: остальные обязаны дать СТАРШУЮ карту масти X
                                     # (нет X -> козырь, нет козыря -> любая). false = просто ходить в масть X.
 

@@ -157,6 +157,9 @@ def new_deal(rules: Rules, n_cards: int, dealer: int, rng: random.Random | int |
     elif rules.trump_no_cards_left == "dealer_last" and last_dealer_card >= 0:
         if not ((1 << last_dealer_card) & jm):
             trump = last_dealer_card // NR
+    if rules.trump_mode == "fixed":
+        trump = rules.trump_fixed_suit
+        tc = -1  # no card is turned up
     if dtype == "notrump":
         trump = -1
     s.trump = trump
@@ -292,7 +295,8 @@ def step(s: State, a: int) -> State:
         if a == A_J_FOLLOW_HIGH:
             kind = K_JHIGH
         elif a == A_J_FOLLOW_LOW:
-            kind = K_JLOW
+            # 'as_card': the joker is played as the ordinary card it is printed as (e.g. 7S) and can win normally
+            kind = K_NORMAL if r.joker_follow_low == "as_card" else K_JLOW
         elif a < A_J_LEAD_LOW:
             kind = K_JHIGH
             s.lead_suit = a - A_J_LEAD_HIGH

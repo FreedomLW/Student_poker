@@ -7,7 +7,10 @@ from engine import (A_J_FOLLOW_HIGH, A_J_FOLLOW_LOW, A_J_LEAD_HIGH, A_J_LEAD_LOW
                     Obs, card_from_str as C, default_rules, legal_actions, load_rules, new_deal,
                     play_deal, play_game, scores, state_from_obs, step)
 
-R = default_rules()
+import os
+CLASSIC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'rules_variants', 'classic.yaml')
+R = load_rules(CLASSIC)
+OURS = default_rules()
 
 
 def H(*cards):
@@ -34,7 +37,7 @@ def run_random(rules, k, seed, dtype="normal"):
 
 @pytest.mark.parametrize("n", [3, 4, 5, 6])
 def test_properties_random_play(n):
-    rules = load_rules(overrides={"n_players": n})
+    rules = load_rules(CLASSIC if n % 2 else None, overrides={"n_players": n})
     for seed in range(300):
         k = 1 + seed % rules.max_cards
         s, init, _ = run_random(rules, k, seed, dtype=["normal", "notrump", "dark"][seed % 3])
@@ -77,7 +80,7 @@ def test_dealer_hook():
     assert s.cur == 3
     legal = [a - BID_OFFSET for a in legal_actions(s)]
     assert 1 not in legal and legal == [0, 2, 3]
-    r2 = load_rules(overrides={"bidding": {"dealer_hook": False}})
+    r2 = load_rules(CLASSIC, overrides={"bidding": {"dealer_hook": False}})
     s = new_deal(r2, 3, dealer=3, rng=1)
     for b in (1, 0, 1):
         step(s, BID_OFFSET + b)
@@ -177,7 +180,7 @@ def test_scoring():
     assert R.score(3, 1) == -30
     assert R.score(2, 2, dark=True) == 40
     assert R.score(2, 0, dark=True) == -40
-    r2 = load_rules(overrides={"scoring": {"under_mode": "missing"}})
+    r2 = load_rules(CLASSIC, overrides={"scoring": {"under_mode": "missing"}})
     assert r2.score(3, 1) == -20
 
 
@@ -195,7 +198,7 @@ def test_obs_hides_other_hands_and_dark():
 
 def test_agents_complete_games():
     for n in (3, 5, 6):
-        rules = load_rules(overrides={"n_players": n})
+        rules = load_rules(CLASSIC if n % 2 else None, overrides={"n_players": n})
         t, log = play_game(rules, [RandomAgent(i) for i in range(n)], 7)
         assert len(log) == len(rules.schedule)
         t, log = play_game(rules, [HeuristicAgent() for _ in range(n)], 7)
@@ -203,7 +206,7 @@ def test_agents_complete_games():
 
 
 def test_variant_flags():
-    r = load_rules(overrides={"trump": {"no_cards_left": "dealer_last"}})
+    r = load_rules(CLASSIC, overrides={"trump": {"no_cards_left": "dealer_last"}})
     s = new_deal(r, 9, 0, 3)
     assert s.trump >= 0 or (s.hands[0] & r.joker_mask)
     r = load_rules(overrides={"deck": {"jokers": []}})
@@ -215,3 +218,43 @@ def test_variant_flags():
     r = load_rules(overrides={"play": {"joker_lead_demand_highest": False, "joker_lead_low": False}})
     for seed in range(50):
         run_random(r, 6, seed)
+
+
+# ----------------------------------------------------------- our house rules (default rules.yaml)
+def test_house_trump_always_diamonds():
+    for seed in range(30):
+        for k in (1, 5, 9):
+            s = new_deal(OURS, k, seed % 4, seed)
+            assert s.trump == 2 and s.trump_card == -1
+
+
+def test_house_joker_lead_only_high():
+    s = make([["7S", "6S"], ["KD", "7D"], ["8S", "8D"], ["9C", "9H"]], bids=(1, 1, 0, 0), rules=OURS)
+    la = legal_actions(s)
+    assert set(la) == {C("6S")} | {A_J_LEAD_HIGH + x for x in range(4)}
+
+
+def test_house_joker_follow_as_7s_can_win():
+    # spades led with 6S; P1 plays the joker "as 7S": it beats 6S if nobody trumps / plays higher spades
+    s = make([["6S", "6C"], ["7S", "7C"], ["6H", "8C"], ["9C", "9H"]], bids=(0, 1, 0, 0), rules=OURS)
+    step(s, C("6S"))
+    assert set(legal_actions(s)) == {C("7C"), A_J_FOLLOW_HIGH, A_J_FOLLOW_LOW}
+    step(s, A_J_FOLLOW_LOW)
+    step(s, C("6H"))
+    step(s, C("9C"))
+    assert s.won == [0, 1, 0, 0]
+    assert s.voids[1] == 0  # joker play never reveals a void
+    # as 7S on a heart lead it cannot win
+    s = make([["6H", "6C"], ["7S", "7C"], ["8H", "8C"], ["9C", "9H"]], bids=(0, 1, 0, 0), rules=OURS)
+    step(s, C("6H"))
+    step(s, A_J_FOLLOW_LOW)
+    step(s, C("8H"))
+    step(s, C("9H"))
+    assert s.won == [0, 0, 0, 1]
+    # as 7S it loses to the 8S
+    s = make([["6S", "6C"], ["7S", "7C"], ["8S", "8C"], ["9C", "9H"]], bids=(0, 1, 0, 0), rules=OURS)
+    step(s, C("6S"))
+    step(s, A_J_FOLLOW_LOW)
+    step(s, C("8S"))
+    step(s, C("9C"))
+    assert s.won == [0, 0, 1, 0]

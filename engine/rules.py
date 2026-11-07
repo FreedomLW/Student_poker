@@ -48,6 +48,9 @@ class Rules:
     schedule: tuple  # tuple of (n_cards, deal_type) ; deal_type in normal/notrump/dark
     trump_joker_turned: str
     trump_no_cards_left: str
+    trump_mode: str          # "fixed" (always the same suit) | "turned" (next card after the deal)
+    trump_fixed_suit: int
+    joker_follow_low: str    # "as_card" (plays as the ordinary card, e.g. 7S) | "discard" (never wins)
     dealer_hook: bool
     dark_sees_trump: bool
     must_follow: bool
@@ -121,6 +124,9 @@ def rules_from_dict(raw: dict) -> Rules:
         schedule=build_schedule(n, raw.get("schedule", {})),
         trump_joker_turned=t.get("joker_turned", "notrump"),
         trump_no_cards_left=t.get("no_cards_left", "notrump"),
+        trump_mode=t.get("mode", "turned"),
+        trump_fixed_suit=SUITS.index(str(t.get("fixed_suit", "D")).upper()),
+        joker_follow_low=p.get("joker_follow_low", "discard"),
         dealer_hook=bool(b.get("dealer_hook", True)),
         dark_sees_trump=bool(b.get("dark_sees_trump", True)),
         must_follow=bool(p.get("must_follow", True)),

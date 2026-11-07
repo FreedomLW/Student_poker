@@ -248,10 +248,12 @@ def smart_play(x, me, hand, legal):
             return min(plain, key=lambda c: (key(c) > 0 and c // NR == T, _is_master(c, unseen, jm), rank(c)))
         return A_J_FOLLOW_HIGH if best < 1000 else A_J_FOLLOW_LOW
     # need <= 0 : avoid tricks
+    j_low_safe = has_j and (x.rules.joker_follow_low != "as_card" or
+                            key((jm & -jm).bit_length() - 1) <= best)
     if losers:
         # dump the highest card that still loses (gets rid of future winners)
         return max(losers, key=lambda c: (key(c), rank(c)))
-    if has_j:
+    if j_low_safe or (has_j and not winners):
         return A_J_FOLLOW_LOW
     if last:
         return max(winners, key=key)

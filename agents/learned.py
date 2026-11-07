@@ -32,6 +32,14 @@ class QNet(nn.Module):
     def forward(self, x):
         return self.net(x)
 
+    def trunk(self, x):
+        """Last hidden layer (used by auxiliary heads during training)."""
+        return self.net[:-1](x)
+
+    def forward_with_trunk(self, x):
+        h = self.net[:-1](x)
+        return self.net[-1](h), h
+
 
 def load_qnet(path: str) -> QNet:
     ck = torch.load(path, map_location="cpu", weights_only=False)

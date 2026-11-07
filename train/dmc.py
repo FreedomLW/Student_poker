@@ -70,7 +70,7 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
         return dict(s=s, roles=roles, traj=[[] for _ in range(n)])
 
     slots = [new_slot() for _ in range(B)]
-    xs, acts, rets, phases = [], [], [], []
+    xs, acts, rets, phases, labs = [], [], [], [], []
     steps = 0
     buf = np.zeros((B, D), np.float32)
     while not stop.is_set():
@@ -82,11 +82,12 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
                 if s.phase == 2:
                     sc = scores(s)
                     for p in range(n):
-                        for (x, a, ph) in sl["traj"][p]:
+                        for (x, a, ph, lab) in sl["traj"][p]:
                             xs.append(x)
                             acts.append(a)
                             rets.append(sc[p] / 10.0)
                             phases.append(ph)
+                            labs.append(lab if lab is not None else np.zeros(36, np.int8))
                     slots[i] = sl = new_slot()
                     s = sl["s"]
                     continue
@@ -132,12 +133,22 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
                 a = max(legal, key=lambda z: q[z])
             s = slots[i]["s"]
             if role == "net":
-                slots[i]["traj"][p].append((buf[j].astype(np.float16), a, s.phase))
+                lab = None
+                if cfg.get("aux"):
+                    lab = np.zeros(36, np.int8)
+                    for rel in range(1, n):
+                        hq = s.hands[(p + rel) % n]
+                        while hq:
+                            lb = hq & -hq
+                            lab[lb.bit_length() - 1] = rel
+                            hq ^= lb
+                slots[i]["traj"][p].append((buf[j].astype(np.float16), a, s.phase, lab))
             step(s, a)
         steps += 1
         if len(xs) >= cfg["chunk"]:
-            out_q.put((np.stack(xs), np.array(acts, np.int16), np.array(rets, np.float32), np.array(phases, np.int8)))
-            xs, acts, rets, phases = [], [], [], []
+            out_q.put((np.stack(xs), np.array(acts, np.int16), np.array(rets, np.float32), np.array(phases, np.int8),
+                       np.stack(labs)))
+            xs, acts, rets, phases, labs = [], [], [], [], []
         if steps % cfg["sync_every"] == 0:
             sync(local, shared)
             sync(past, past_shared)
@@ -164,6 +175,7 @@ def main(argv=None):
     ap.add_argument("--init-play", default=None)
     ap.add_argument("--ckpt-minutes", type=float, default=10)
     ap.add_argument("--learner-threads", type=int, default=1)
+    ap.add_argument("--aux", type=float, default=0.0, help="weight of auxiliary hidden-card-location loss (0 = off)")
     a = ap.parse_args(argv)
     torch.set_num_threads(a.learner_threads)
     R = default_rules()
@@ -196,7 +208,11 @@ def main(argv=None):
     shared = make_shared()
     past_shared = make_shared()
     cfg = dict(hidden=a.hidden, batch_deals=a.batch_deals, eps=a.eps, p_heur=a.p_heur, p_heur2=a.p_heur2,
-               p_past=a.p_past, chunk=4096, sync_every=50)
+               p_past=a.p_past, chunk=4096, sync_every=50, aux=a.aux > 0)
+    aux_heads = {}
+    if a.aux > 0:
+        for ph in phases:
+            aux_heads[ph] = torch.nn.Linear(hid[ph][-1], 36 * 4)
     out_dir = os.path.join(ROOT, "runs", "dmc", a.name)
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "config.json"), "w") as f:
@@ -208,12 +224,14 @@ def main(argv=None):
              for i in range(a.actors)]
     for p in procs:
         p.start()
-    opts = {ph: torch.optim.Adam(models[ph].parameters(), lr=a.lr) for ph in phases}
+    opts = {ph: torch.optim.Adam(list(models[ph].parameters()) +
+                                 (list(aux_heads[ph].parameters()) if ph in aux_heads else []), lr=a.lr)
+            for ph in phases}
     # buffers per learning group (group = phase if separate else 0)
     groups = phases
     cap = {g: (a.buffer if (g == 1 or not a.separate) else a.buffer // 4) for g in groups}
     BUF = {g: dict(X=np.zeros((cap[g], D), np.float16), A=np.zeros(cap[g], np.int64), G=np.zeros(cap[g], np.float32),
-                   PH=np.zeros(cap[g], np.int8), size=0, ptr=0) for g in groups}
+                   PH=np.zeros(cap[g], np.int8), Y=np.zeros((cap[g], 36), np.int8), size=0, ptr=0) for g in groups}
     total = 0
     t0 = time.time()
     last_ck = t0
@@ -226,12 +244,13 @@ def main(argv=None):
     lw.writerow(["time_s", "samples", "updates", "loss", "loss_bid", "mean_ret"])
     rng = np.random.default_rng(0)
     rets_recent = []
+    aux_losses = []
 
-    def add(g, xs, acts, rets, ph):
+    def add(g, xs, acts, rets, ph, ys):
         B = BUF[g]
         m = len(acts)
         idx = (B["ptr"] + np.arange(m)) % cap[g]
-        B["X"][idx], B["A"][idx], B["G"][idx], B["PH"][idx] = xs, acts, rets, ph
+        B["X"][idx], B["A"][idx], B["G"][idx], B["PH"][idx], B["Y"][idx] = xs, acts, rets, ph, ys
         B["ptr"] = (B["ptr"] + m) % cap[g]
         B["size"] = min(cap[g], B["size"] + m)
 
@@ -248,17 +267,17 @@ def main(argv=None):
         got = {g: 0 for g in groups}
         while True:
             try:
-                xs, acts, rets, ph = q.get(timeout=0.01 if total > 0 else 5)
+                xs, acts, rets, ph, ys = q.get(timeout=0.01 if total > 0 else 5)
             except queue.Empty:
                 break
             if a.separate:
                 for g in groups:
                     m = ph == g
                     if m.any():
-                        add(g, xs[m], acts[m], rets[m], ph[m])
+                        add(g, xs[m], acts[m], rets[m], ph[m], ys[m])
                         got[g] += int(m.sum())
             else:
-                add(0, xs, acts, rets, ph)
+                add(0, xs, acts, rets, ph, ys)
                 got[0] += len(acts)
             total += len(acts)
             rets_recent.append(rets.mean())
@@ -274,8 +293,16 @@ def main(argv=None):
                 xb = torch.from_numpy(B["X"][bi].astype(np.float32))
                 ab = torch.from_numpy(B["A"][bi])
                 gb = torch.from_numpy(B["G"][bi])
-                qv = models[g](xb).gather(1, ab[:, None])[:, 0]
-                loss = ((qv - gb) ** 2).mean()
+                if g in aux_heads:
+                    qall, hfeat = models[g].forward_with_trunk(xb)
+                    qv = qall.gather(1, ab[:, None])[:, 0]
+                    yb = torch.from_numpy(B["Y"][bi].astype(np.int64))
+                    al = torch.nn.functional.cross_entropy(aux_heads[g](hfeat).view(-1, 4), yb.view(-1))
+                    loss = ((qv - gb) ** 2).mean() + a.aux * al
+                    aux_losses.append(al.item())
+                else:
+                    qv = models[g](xb).gather(1, ab[:, None])[:, 0]
+                    loss = ((qv - gb) ** 2).mean()
                 opts[g].zero_grad()
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(models[g].parameters(), 10.0)
@@ -294,7 +321,8 @@ def main(argv=None):
                          round(float(np.mean(rets_recent[-50:])), 4)])
             logf.flush()
             print(f"[{(now - t0) / 60:.1f}m] samples={total} upd={upd} loss={ml:.4f} bidloss={lb:.4f} "
-                  f"ret={np.mean(rets_recent[-50:]):.3f} rate={total / (now - t0):.0f}/s", flush=True)
+                  f"ret={np.mean(rets_recent[-50:]):.3f} rate={total / (now - t0):.0f}/s"
+                  + (f" aux={np.mean(aux_losses[-200:]):.4f}" if aux_losses else ""), flush=True)
             last_log = now
         if now - last_ck > a.ckpt_minutes * 60:
             tag = f"_{total // 1000}k"

@@ -70,7 +70,7 @@ def forbidden_masks(o) -> list:
             if kinds and kinds[0] == K_JHIGH:
                 for i in range(1, len(cards)):
                     c = cards[i]
-                    if kinds[i] == 0 and c // NR == ls:
+                    if kinds[i] == 0 and c // NR == ls and not ((1 << c) & jm):
                         p = (leader + i) % n
                         above = SUIT_MASK[ls] & ~((1 << (c + 1)) - 1)
                         forb[p] |= above & ~jm
