@@ -34,7 +34,8 @@ def _parse_kwargs(s: str) -> dict:
 def _kinds():
     from agents.heuristic import HeuristicAgent
     from agents.random_agent import RandomAgent
-    kinds = {"random": RandomAgent, "heuristic": HeuristicAgent}
+    from agents.heuristic2 import SmartHeuristicAgent
+    kinds = {"random": RandomAgent, "heuristic": HeuristicAgent, "heuristic2": SmartHeuristicAgent}
     try:
         from agents.pimc import PIMCAgent
         kinds["pimc"] = PIMCAgent
