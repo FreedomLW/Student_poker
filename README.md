@@ -92,21 +92,30 @@ tests/     property-тесты движка, env, eval
 
 ## Варианты правил (rules.yaml)
 
+**По умолчанию — правила компании** (с 2026-11-07): козырь всегда бубны; джокер 7♠ можно сыграть в любой свой ход;
+заходя с него — только «старшую масти X»; в ответ — как джокер (бьёт всё) или как обычная 7♠.
+Прежние «классические» правила (открытый козырь, бескозырки, джокер-младший = сброс): `rules_variants/classic.yaml`
+(`load_rules("rules_variants/classic.yaml")`). Результаты в INSIGHTS.md §§0–8 получены на классических правилах,
+раздел «Правила компании» — на новых.
+
 | флаг | по умолчанию | варианты | смысл |
 |---|---|---|---|
 | `n_players` | 4 | 3–6 | max карт = 36 // n |
 | `deck.jokers` | `["7S"]` | `[]`, `["6S"]`, два джокера | какие карты — джокеры |
 | `schedule.ascending/descending` | true | false | 1..max−1 и max−1..1 |
 | `schedule.max_repeats` | null (= n) | число | раздач по max подряд |
-| `schedule.special` | n бескозырок + n тёмных | список `{type, count, n_cards}` | спецраунды |
-| `trump.joker_turned` | notrump | — | открыт джокер → бескозырка |
+| `schedule.special` | n тёмных | список `{type, count, n_cards}` (`notrump`, `dark`) | спецраунды |
+| `trump.mode` | **fixed** | `turned` | козырь всегда `fixed_suit` / следующая открытая карта |
+| `trump.fixed_suit` | **D** (бубны) | S, C, H | |
+| `trump.joker_turned` | notrump | — | (для turned) открыт джокер → бескозырка |
 | `trump.no_cards_left` | notrump | `dealer_last` | карт не осталось → бескозырка / масть последней карты сдающего |
 | `bidding.dealer_hook` | true | false | сдающий не может сделать сумму заказов = n_cards |
 | `bidding.dark_sees_trump` | true | false | в тёмной козырь виден до заказа |
 | `play.must_follow` | true | false | обязательно в масть |
 | `play.must_trump` | true | false | нет масти → обязательно козырь |
 | `play.joker_any_time` | true | false | джокер можно играть, даже имея масть |
-| `play.joker_lead_low` | true | false | заход джокером как младшей картой названной масти |
+| `play.joker_lead_low` | **false** | true | заход джокером как младшей картой названной масти |
+| `play.joker_follow_low` | **as_card** | discard | в ответ «не джокером»: как обычная 7♠ (может взять) / гарантированный сброс |
 | `play.joker_lead_demand_highest` | true | false | заход «старший X» требует старшую карту X |
 | `scoring.exact_per_trick` | 10 | | ровно: 10×заказ |
 | `scoring.pass_exact` | 5 | | пас выполнен |
