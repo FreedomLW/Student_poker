@@ -1,0 +1,147 @@
+{
+ "trump": {
+  "1": {
+   "const": -0.2,
+   "joker": 0.7,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.08,
+   "kings_side": 0.2,
+   "voids": 0.0
+  },
+  "2": {
+   "const": 0.05,
+   "joker": 1.1,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.16,
+   "kings_side": 0.2,
+   "voids": 0.0
+  },
+  "3": {
+   "const": -0.05,
+   "joker": 1.1,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.24,
+   "kings_side": 0.2,
+   "voids": 0.0
+  },
+  "4": {
+   "const": -0.15,
+   "joker": 1.1,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.32,
+   "kings_side": 0.2,
+   "voids": 0.0
+  },
+  "5": {
+   "const": -0.25,
+   "joker": 1.1,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.4,
+   "kings_side": 0.2,
+   "voids": 0.0
+  },
+  "6": {
+   "const": -0.35,
+   "joker": 1.1,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.48,
+   "kings_side": 0.2,
+   "voids": 0.0
+  },
+  "7": {
+   "const": -0.45,
+   "joker": 1.1,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.56,
+   "kings_side": 0.2,
+   "voids": 0.0
+  },
+  "8": {
+   "const": -0.55,
+   "joker": 1.1,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.64,
+   "kings_side": 0.2,
+   "voids": 0.0
+  },
+  "9": {
+   "const": -0.65,
+   "joker": 1.1,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.72,
+   "kings_side": 0.2,
+   "voids": 0.0
+  },
+  "10": {
+   "const": -0.75,
+   "joker": 1.1,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.8,
+   "kings_side": 0.2,
+   "voids": 0.0
+  },
+  "11": {
+   "const": -0.85,
+   "joker": 1.1,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.88,
+   "kings_side": 0.2,
+   "voids": 0.0
+  },
+  "12": {
+   "const": -0.95,
+   "joker": 1.1,
+   "trump_A": 0.6,
+   "trump_K": 0.45,
+   "trump_Q": 0.3,
+   "n_trump": 0.6,
+   "aces_side": 0.96,
+   "kings_side": 0.2,
+   "voids": 0.0
+  }
+ },
+ "nt": {
+  "const": -0.65,
+  "joker": 1.1,
+  "trump_A": 0.6,
+  "trump_K": 0.45,
+  "trump_Q": 0.3,
+  "n_trump": 0.6,
+  "aces_side": 0.72,
+  "kings_side": 0.2,
+  "voids": 0.0
+ }
+}

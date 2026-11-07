@@ -1,0 +1,7 @@
+{
+  "kind": "hybrid",
+  "kwargs": {
+    "bid": "heuristic",
+    "play": "store:house_A"
+  }
+}

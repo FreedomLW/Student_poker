@@ -1,0 +1,26 @@
+{
+ "name": "house_C",
+ "minutes": 90.0,
+ "actors": 3,
+ "batch_deals": 64,
+ "eps": 0.03,
+ "p_heur": 0.2,
+ "p_heur2": 0.8,
+ "p_past": 0.25,
+ "lr": 7e-05,
+ "bs": 2048,
+ "buffer": 800000,
+ "hidden": [
+  512,
+  512,
+  256
+ ],
+ "bid_hidden": null,
+ "separate": true,
+ "init": null,
+ "init_bid": "runs/dmc/house_A/bidnet.pt",
+ "init_play": "runs/dmc/house_A/playnet.pt",
+ "ckpt_minutes": 10,
+ "learner_threads": 1,
+ "aux": 0.0
+}

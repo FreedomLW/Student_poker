@@ -31,7 +31,11 @@ def main(argv=None):
     os.makedirs(os.path.dirname(cache_p), exist_ok=True)
     cache = json.load(open(cache_p)) if os.path.exists(cache_p) else {}
 
+    from engine import default_rules
+    rh = default_rules().hash
+
     def cached(key, fn):
+        key = key if rh == "6ffb18cb5324" else f"{rh}|{key}"  # classic-rules results were cached without a hash
         if key not in cache:
             cache[key] = [np.asarray(x).tolist() for x in fn()]
             json.dump(cache, open(cache_p, "w"))

@@ -1,0 +1,7 @@
+{
+  "kind": "hybrid",
+  "kwargs": {
+    "bid": "heuristic2:calib=runs/analysis/napkin_house.json",
+    "play": "store:house_A"
+  }
+}
