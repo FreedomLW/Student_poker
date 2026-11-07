@@ -7,6 +7,22 @@ duplicate-турниры с Elo и анализ стратегии.
 **Главное — в [INSIGHTS.md](INSIGHTS.md)** (как играть), **[leaderboard.md](leaderboard.md)** (сила агентов),
 [DECISIONS.md](DECISIONS.md) (все спорные решения), [PROGRESS.md](PROGRESS.md), [research/tips.md](research/tips.md).
 
+## Результаты в двух словах
+
+| агент | что это | Elo | Δ vs heuristic2, очк/раздачу |
+|---|---|---|---|
+| `store:best` = `store:dmc_v3` | DMC self-play, раздельные сети заказа и розыгрыша | **2094** | +3.79 [3.52, 4.06] |
+| `store:dmc_v2` | то же, предыдущая версия | 2003 | +3.57 |
+| `store:pimc_h2c` | PIMC, 16 миров, роллауты heuristic2c, точный эндшпиль | 1957 | +4.41 (знает модель соперника) |
+| `store:dmc_v1` | DMC, одна сеть | 1793 | +2.02 |
+| `store:heuristic2c` | «сильный клубный игрок» + калиброванный заказ | 1616 | +1.03 |
+| `heuristic2` | «сильный клубный игрок» | 1500 | 0 |
+| `heuristic` | «типичный человек» | 1254 | −1.50 |
+
+Ключевые выводы (подробно, с CI — в [INSIGHTS.md](INSIGHTS.md)): заказывайте на ~0.4 взятки меньше ожидания;
+козырь ≈ +0.65 взятки, некозырный туз в коротких раздачах почти ничего не стоит; джокер ≈ +6…+20 очков и +25…+40 п.п.
+к шансу выполнить заказ; сдающий теряет 6.5 очка в 1-карточной раздаче из-за правила сдающего; в тёмной — заказ 2.
+
 ## Быстрый старт
 
 ```bash
@@ -18,7 +34,8 @@ python scripts/bench.py            # скорость
 ### Сыграть самому
 
 ```bash
-python -m play.cli --opponents store:best heuristic heuristic          # полная партия (28 раздач)
+python -m play.cli --opponents store:best                              # полная партия (28 раздач) против трёх лучших агентов
+python -m play.cli --opponents store:best heuristic heuristic          # смешанный стол
 python -m play.cli --deal 5 --opponents pimc:samples=24                # одна раздача по 5 карт
 ```
 Вы вводите номер варианта. Джокер: `JOKER-high/low` — старший/младший, `JOKER-lead-high(♠)` — заход «по старшим пикам»,
@@ -30,7 +47,7 @@ python -m play.cli --deal 5 --opponents pimc:samples=24                # одн�
 ### Турнир / лидерборд
 
 ```bash
-python -m eval.leaderboard --agents heuristic pimc:samples=16 store:best --games 100 --pair-games 50
+python -m eval.leaderboard --agents heuristic heuristic2 store:dmc_v3 store:pimc_h2c --field heuristic2 --games 60 --pair-games 30
 ```
 Duplicate-формат: одни и те же расклады, кандидат по очереди на каждом месте против 3×field;
 Δ = очки за раздачу относительно field на тех же раскладах, 95% bootstrap CI. Pairwise ABAB/BABA → Bradley–Terry Elo.
@@ -38,8 +55,11 @@ Duplicate-формат: одни и те же расклады, кандидат
 ### Дообучить
 
 ```bash
-python -m train.dmc --name dmc_v3 --minutes 120 --actors 3 --init agents_store/best/1/qnet.pt
-python -c "from registry.store import save_agent; save_agent('dmc_v3','1','learned',{},{'qnet.pt':'runs/dmc/dmc_v3/qnet.pt'})"
+# продолжить обучение лучшей сети (раздельные сети заказа и розыгрыша)
+python -m train.dmc --name dmc_v4 --minutes 120 --actors 3 --separate --lr 5e-5 --p-heur 0.3 --p-heur2 0.8 \
+    --init-bid agents_store/dmc_v3/1/bidnet.pt --init-play agents_store/dmc_v3/1/playnet.pt
+python scripts/eval_ckpts.py runs/dmc/dmc_v4 60 4 heuristic2   # все чекпоинты vs поле heuristic2
+python -c "from registry.store import save_agent; save_agent('dmc_v4','1','learned',{},{'bidnet.pt':'runs/dmc/dmc_v4/bidnet.pt','playnet.pt':'runs/dmc/dmc_v4/playnet.pt'})"
 ```
 Логи: `runs/dmc/<name>/log.csv`, чекпоинты `ckpt_*.pt`.
 
@@ -49,7 +69,10 @@ python -c "from registry.store import save_agent; save_agent('dmc_v3','1','learn
 python -m analysis.one_card --iters 40                       # точный эквилибриум заказа для 1 карты
 python -m analysis.collect --specs store:best --deals 40000 --out runs/data/best.npz
 python -m analysis.calibration runs/data/best.npz            # таблицы калибровки
-python -m analysis.experiments all                           # эксперименты для INSIGHTS.md
+python -m analysis.tables runs/data/best.npz                 # EV по местам, джокер, поведение заказа, тёмная
+PROCS=4 python -m analysis.experiments all --best store:dmc_v3  # duplicate-эксперименты: сдвиг заказа, джокер, тёмная, туз
+python -m analysis.actions --spec store:dmc_v3                # пошаговая статистика ходов
+python -m analysis.distill runs/data/best.npz                 # дерево решений для заказа
 ```
 
 ## Структура
