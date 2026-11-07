@@ -1,0 +1,7 @@
+{
+  "kind": "hybrid",
+  "kwargs": {
+    "bid": "heuristic2:calib=agents/calib_default.json",
+    "play": "store:dmc_v3"
+  }
+}

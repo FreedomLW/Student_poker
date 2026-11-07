@@ -1,0 +1,4 @@
+wrap:base=store~dmc_v3,mode=napkin,coefs=agents/napkin_simple.json,delta=0.5 -1.12 [-1.26, -0.99]
+wrap:base=store~dmc_v3,mode=napkin,coefs=agents/napkin_simple.json,delta=0 -1.30 [-1.51, -1.10]
+store:hyb_h2cbid_v3play -0.67 [-0.81, -0.54]
+store:hyb_hbid_v3play -1.61 [-1.76, -1.47]

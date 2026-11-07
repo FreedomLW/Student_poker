@@ -17,6 +17,7 @@ from eval.harness import bootstrap_ci, deal_vs_field, vs_field
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "runs", "analysis")
 PROCS = int(os.environ.get("PROCS", "1"))
+SIZES = [int(x) for x in os.environ["SIZES"].split(",")] if os.environ.get("SIZES") else None
 
 
 def ci_str(x):
@@ -46,7 +47,7 @@ def run_seatwise(cand, best, sizes, deals, dtype="normal", label=""):
 def exp_shade(best, deals):
     res = {}
     for d in (-1, 1):
-        res[d] = run_seatwise(f"wrap:base={tilde(best)},mode=shade,delta={d}", best, [1, 2, 3, 5, 7, 9], deals,
+        res[d] = run_seatwise(f"wrap:base={tilde(best)},mode=shade,delta={d}", best, SIZES or [1, 2, 3, 5, 7, 9], deals,
                               label=f"Сдвиг заказа на {d:+d} относительно лучшего агента (Δ очков/раздачу)")
     return res
 
