@@ -33,7 +33,8 @@ class WrapAgent(Agent):
         self.delta = delta
         self.fbid = bid
         self.coefs = None
-        if coefs:
+        self.coefs_path = coefs
+        if coefs and coefs.endswith(".json"):
             with open(coefs) as f:
                 self.coefs = json.load(f)
 
@@ -42,6 +43,22 @@ class WrapAgent(Agent):
 
     def new_deal(self):
         self.base.new_deal()
+
+    def tree_bid(self, o):
+        import pickle
+        import numpy as np
+        from analysis.collect import hand_features
+        if not hasattr(self, "_tree"):
+            with open(self.coefs_path, "rb") as f:
+                self._tree = pickle.load(f)
+        f = hand_features(o.hand, o.trump, o.rules.joker_mask)
+        order = [(o.first_seat + j) % o.n for j in range(o.n)]
+        seat = o.my_seat
+        prev = sum(o.bids[q] for q in order[:seat])
+        f.update(n_cards=o.n_cards, seat=seat, is_trump_deal=int(o.trump >= 0), prev_bid_sum=prev,
+                 forbidden_rel=(o.n_cards - prev) if (seat == o.n - 1 and o.rules.dealer_hook) else -1)
+        x = np.array([[f[k] for k in self._tree["feats"]]])
+        return int(self._tree["clf"].predict(x)[0])
 
     def napkin_est(self, o):
         from analysis.collect import hand_features
@@ -63,6 +80,8 @@ class WrapAgent(Agent):
                 return nearest_legal_bid(legal, self.base.act(o, legal) - BID_OFFSET + self.delta)
             if m == "forced_bid":
                 return nearest_legal_bid(legal, self.fbid)
+            if m == "tree":
+                return nearest_legal_bid(legal, self.tree_bid(o))
             if m == "napkin":
                 est = self.napkin_est(o) - self.delta
                 return nearest_legal_bid(legal, est)
