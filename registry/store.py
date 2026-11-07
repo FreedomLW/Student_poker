@@ -45,6 +45,10 @@ def _kinds():
         kinds["learned"] = LearnedAgent
     except ImportError:
         pass
+    from agents.wrappers import WrapAgent
+    kinds["wrap"] = WrapAgent
+    from agents.hybrid import HybridAgent
+    kinds["hybrid"] = HybridAgent
     try:
         from agents.small_exact import SmallExactAgent
         kinds["exact"] = SmallExactAgent

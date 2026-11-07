@@ -161,3 +161,34 @@ def deal_eval(specs, n_cards, n_deals, dtype="normal", overrides=None, seed0=30_
     n = rules.n_players
     tasks = [(tuple(specs), seed0 + d, overrides, n_cards, dtype, d % n) for d in range(n_deals)]
     return pmap(_deal_task, tasks, procs)
+
+
+def deal_vs_field(cand: str, field: str, n_cards: int, n_deals: int, dtype="normal", overrides=None,
+                  seed0=40_000, procs=None, seats=None):
+    """Deal-level duplicate: candidate in each seat (or given seats) vs 3x field on identical deals,
+    compared with the all-field deal. Returns dict seat -> array of per-deal deltas (points)."""
+    rules = load_rules(overrides=overrides)
+    n = rules.n_players
+    seats = list(range(n)) if seats is None else seats
+    tasks = []
+    for d in range(n_deals):
+        seed = seed0 + d
+        dealer = d % n
+        tasks.append(((field,) * n, seed, overrides, n_cards, dtype, dealer))
+        for seat in seats:
+            p = (dealer + 1 + seat) % n  # seat relative to first bidder
+            specs = [field] * n
+            specs[p] = cand
+            tasks.append((tuple(specs), seed, overrides, n_cards, dtype, dealer))
+    res = pmap(_deal_task, tasks, procs)
+    out = {s: [] for s in seats}
+    k = 0
+    for d in range(n_deals):
+        base = res[k][1]
+        dealer = d % n
+        k += 1
+        for seat in seats:
+            p = (dealer + 1 + seat) % n
+            out[seat].append(res[k][1][p] - base[p])
+            k += 1
+    return {s: np.array(v, float) for s, v in out.items()}

@@ -1,0 +1,20 @@
+{
+ "name": "dmc_v1",
+ "minutes": 110.0,
+ "actors": 3,
+ "batch_deals": 64,
+ "eps": 0.03,
+ "p_heur": 0.2,
+ "p_past": 0.15,
+ "lr": 0.0003,
+ "bs": 1024,
+ "buffer": 400000,
+ "hidden": [
+  512,
+  512,
+  256
+ ],
+ "init": null,
+ "ckpt_minutes": 10,
+ "learner_threads": 1
+}
