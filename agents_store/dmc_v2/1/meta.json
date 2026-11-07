@@ -1,0 +1,8 @@
+{
+  "git_sha": "1433d6c",
+  "date": "2026-11-07T16:43:07",
+  "rules_hash": "6ffb18cb5324",
+  "train_samples": "90.6M (v1) + 50M",
+  "algo": "DMC separate bid/play nets, init from v1, lr 1e-4",
+  "opponents": "self-play + 30% heuristic seats (80% heuristic2) + 15% past"
+}

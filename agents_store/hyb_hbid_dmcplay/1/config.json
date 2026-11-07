@@ -1,0 +1,7 @@
+{
+  "kind": "hybrid",
+  "kwargs": {
+    "bid": "heuristic",
+    "play": "store:dmc_v1"
+  }
+}

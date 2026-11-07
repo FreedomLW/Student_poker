@@ -109,10 +109,13 @@ def main(argv=None):
     ap.add_argument("--out", required=True)
     ap.add_argument("--procs", type=int, default=4)
     ap.add_argument("--seed0", type=int, default=500_000)
+    ap.add_argument("--override", default=None, help='JSON rules override, e.g. {"bidding":{"dealer_hook":false}}')
     a = ap.parse_args(argv)
-    rules = load_rules()
+    import json
+    ov = json.loads(a.override) if a.override else None
+    rules = load_rules(overrides=ov)
     specs = a.specs * rules.n_players if len(a.specs) == 1 else a.specs
-    arr = collect(specs, a.deals, procs=a.procs, seed0=a.seed0)
+    arr = collect(specs, a.deals, overrides=ov, procs=a.procs, seed0=a.seed0)
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     np.savez_compressed(a.out, data=arr, fields=np.array(FIELDS), specs=np.array(specs))
     print("saved", a.out, arr.shape)
