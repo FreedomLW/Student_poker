@@ -16,6 +16,7 @@ from eval.harness import bootstrap_ci, deal_vs_field, vs_field
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "runs", "analysis")
+PROCS = int(os.environ.get("PROCS", "1"))
 
 
 def ci_str(x):
@@ -34,7 +35,7 @@ def run_seatwise(cand, best, sizes, deals, dtype="normal", label=""):
     print("|---|---|---|---|---|---|")
     for k in sizes:
         t0 = time.time()
-        r = deal_vs_field(cand, best, k, deals, dtype=dtype)
+        r = deal_vs_field(cand, best, k, deals, dtype=dtype, procs=PROCS)
         allv = np.concatenate([r[s] for s in range(4)])
         cells = [ci_str(r[s]) for s in range(4)] + [ci_str(allv)]
         rows[k] = [c[1] for c in cells]

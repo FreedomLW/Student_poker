@@ -97,7 +97,13 @@ class PIMCAgent(Agent):
             torch.set_num_threads(1)
             self.net = {0: load_qnet(kw["net_bid"]), 1: load_qnet(kw.get("net_play", kw["net_bid"]))}
             self.exact_tricks = kw.get("net_exact", 2)
-        if rollout == "h2" or rollout.startswith("net"):
+        if rollout == "h2c":
+            import functools
+            import os
+            from .heuristic2 import smart_bid, smart_play
+            cal = kw.get("calib") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "calib_default.json")
+            self.pol = (functools.partial(smart_bid, calib=cal), smart_play)
+        elif rollout == "h2" or rollout.startswith("net"):
             from .heuristic2 import smart_bid, smart_play
             self.pol = (smart_bid, smart_play)
         else:

@@ -68,6 +68,7 @@ def ols(d, mask, feats, target="tricks"):
     cov = s2 * np.linalg.pinv(X.T @ X)
     se = np.sqrt(np.diag(cov))
     r2 = 1 - (res @ res) / ((y - y.mean()) @ (y - y.mean()))
+    ols.last_rmse = float(np.sqrt(res @ res / len(y)))
     return beta, se, r2
 
 
@@ -81,6 +82,7 @@ def ols_table(d):
             continue
         b, se, r2 = ols(d, m, FEATS_T)
         coefs[int(k)] = dict(zip(["const"] + FEATS_T, map(float, b)))
+        coefs[int(k)]["_rmse"] = ols.last_rmse
         lines.append(f"| {k} | " + " | ".join(f"{bi:+.2f}" for bi in b) + f" | {r2:.2f} |")
     return "\n".join(lines), coefs
 
@@ -92,7 +94,9 @@ def ols_nt(d):
     b, se, r2 = ols(d, m, FEATS_NT)
     line = "| 9 (NT) | " + " | ".join(f"{bi:+.2f}±{1.96*s:.2f}" for bi, s in zip(b, se)) + f" | {r2:.2f} |"
     head = "| n_cards | " + " | ".join(["const"] + FEATS_NT) + " | R² |\n" + "|---" * (len(FEATS_NT) + 3) + "|"
-    return head + "\n" + line, dict(zip(["const"] + FEATS_NT, map(float, b)))
+    c = dict(zip(["const"] + FEATS_NT, map(float, b)))
+    c["_rmse"] = ols.last_rmse
+    return head + "\n" + line, c
 
 
 def main():

@@ -113,7 +113,27 @@ def _one_card_sigma():
 DARK_BID = {0: 2, 1: 2, 2: 2, 3: 2}  # refined after experiments (see INSIGHTS.md)
 
 
-def smart_bid(x, me, hand, legal):
+_CALIB = {}
+
+
+def calib_estimate(path, hand, k, trump, jm):
+    """OLS estimate of tricks (+ residual sd) from analysis.calibration json."""
+    import json
+    from analysis.collect import hand_features
+    if path not in _CALIB:
+        with open(path) as f:
+            _CALIB[path] = json.load(f)
+    c = _CALIB[path]
+    f = hand_features(hand, trump, jm)
+    if trump < 0:
+        cc = c["nt"]
+    else:
+        cc = c["trump"].get(str(k)) or c["trump"][max(c["trump"], key=int)]
+    est = cc["const"] + sum(v * f[key] for key, v in cc.items() if not key.startswith("_") and key != "const")
+    return est, cc.get("_rmse")
+
+
+def smart_bid(x, me, hand, legal, calib=None):
     r = x.rules
     k = x.n_cards
     n = x.n
@@ -131,6 +151,13 @@ def smart_bid(x, me, hand, legal):
     if x.dark:
         b = DARK_BID.get(seat, 2) if k >= 6 else round(k / n)
         return min(legal, key=lambda a: abs(a - BID_OFFSET - b))
+    sd = None
+    if calib:
+        est, sd = calib_estimate(calib, hand, k, x.trump, r.joker_mask)
+        if prev:  # calibrated slope of tricks on earlier bidders' excess (analysis.tables)
+            est -= 0.2 * (sum(prev) - len(prev) * k / n)
+        est = max(0.0, min(k, est))
+        return ev_best_bid(legal, est, k, r, sd=sd)
     est = estimate2(hand, k, n, x.trump, r.joker_mask)
     # competition: earlier bidders claiming more than their share lowers my expectation
     if prev:
@@ -234,10 +261,14 @@ def smart_play(x, me, hand, legal):
 class SmartHeuristicAgent(Agent):
     name = "heuristic2"
 
-    def __init__(self, seed: int = 0, **kw):
+    def __init__(self, seed: int = 0, calib: str | None = None, **kw):
         self.rng = random.Random(seed)
+        import os
+        if calib and not os.path.isabs(calib):
+            calib = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), calib)
+        self.calib = calib
 
     def act(self, obs, legal):
         if obs.phase == PH_BID:
-            return smart_bid(obs, obs.me, obs.hand, legal)
+            return smart_bid(obs, obs.me, obs.hand, legal, self.calib)
         return smart_play(obs, obs.me, obs.hand, legal)

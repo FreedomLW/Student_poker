@@ -1,0 +1,6 @@
+{
+  "kind": "heuristic2",
+  "kwargs": {
+    "calib": "agents/calib_default.json"
+  }
+}
