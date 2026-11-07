@@ -1,0 +1,7 @@
+{
+  "kind": "pimc",
+  "kwargs": {
+    "samples": 16,
+    "rollout": "h2"
+  }
+}

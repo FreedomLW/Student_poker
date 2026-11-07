@@ -1,0 +1,6 @@
+{
+  "git_sha": "2e47485",
+  "date": "2026-11-07T15:22:52",
+  "rules_hash": "6ffb18cb5324",
+  "note": "PIMC 16 worlds, heuristic2 rollouts, exact max^n <=3 tricks"
+}

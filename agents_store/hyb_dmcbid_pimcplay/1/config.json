@@ -1,0 +1,7 @@
+{
+  "kind": "hybrid",
+  "kwargs": {
+    "bid": "learned:path=runs/dmc/dmc_v1/ckpt_58610k.pt",
+    "play": "pimc:samples=16,rollout=\"h2\""
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "git_sha": "2e47485",
+  "date": "2026-11-07T15:22:52",
+  "rules_hash": "6ffb18cb5324",
+  "train_samples": 90604779,
+  "train_minutes": 110,
+  "algo": "DMC single net",
+  "opponents": "self-play + 20% heuristic + 15% past"
+}
