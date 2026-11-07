@@ -4,5 +4,7 @@
   "rules_hash": "6ffb18cb5324",
   "train_samples": "90.6M (v1) + 50M",
   "algo": "DMC separate bid/play nets, init from v1, lr 1e-4",
-  "opponents": "self-play + 30% heuristic seats (80% heuristic2) + 15% past"
+  "opponents": "self-play + 30% heuristic seats (80% heuristic2) + 15% past",
+  "elo": 2003,
+  "delta_vs_heuristic2": 3.57
 }

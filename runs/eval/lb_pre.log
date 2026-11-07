@@ -1,2 +1,20 @@
 vs-field heuristic: -1.504 [-1.818,-1.173] pts/deal
 vs-field store:heuristic2c: +1.032 [+0.853,+1.208] pts/deal
+vs-field store:dmc_v1: +2.020 [+1.694,+2.338] pts/deal
+vs-field store:dmc_v2: +3.570 [+3.327,+3.818] pts/deal
+vs-field store:pimc_h2c: +4.410 [+3.912,+4.881] pts/deal
+pair heuristic vs heuristic2: -2.145 [-2.814,-1.493] win 0.13
+pair heuristic vs store:heuristic2c: -2.821 [-3.622,-2.091] win 0.10
+pair heuristic vs store:dmc_v1: -3.474 [-4.123,-2.865] win 0.00
+pair heuristic vs store:dmc_v2: -4.578 [-5.251,-3.881] win 0.03
+pair heuristic vs store:pimc_h2c: -4.285 [-5.034,-3.520] win 0.03
+pair heuristic2 vs store:heuristic2c: -0.754 [-1.156,-0.331] win 0.30
+pair heuristic2 vs store:dmc_v1: -2.032 [-2.672,-1.364] win 0.17
+pair heuristic2 vs store:dmc_v2: -3.116 [-3.660,-2.639] win 0.00
+pair heuristic2 vs store:pimc_h2c: -3.421 [-4.234,-2.671] win 0.07
+pair store:heuristic2c vs store:dmc_v1: -1.085 [-1.711,-0.405] win 0.20
+pair store:heuristic2c vs store:dmc_v2: -2.444 [-3.027,-1.908] win 0.07
+pair store:heuristic2c vs store:pimc_h2c: -1.791 [-2.592,-1.039] win 0.17
+pair store:dmc_v1 vs store:dmc_v2: -1.947 [-2.511,-1.426] win 0.10
+pair store:dmc_v1 vs store:pimc_h2c: -1.674 [-2.700,-0.693] win 0.30
+pair store:dmc_v2 vs store:pimc_h2c: +0.441 [-0.297,+1.137] win 0.57

@@ -5,5 +5,7 @@
   "train_samples": 90604779,
   "train_minutes": 110,
   "algo": "DMC single net",
-  "opponents": "self-play + 20% heuristic + 15% past"
+  "opponents": "self-play + 20% heuristic + 15% past",
+  "elo": 1793,
+  "delta_vs_heuristic2": 2.02
 }

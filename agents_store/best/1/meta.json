@@ -1,0 +1,9 @@
+{
+  "git_sha": "c131406",
+  "date": "2026-11-07T18:35:55",
+  "rules_hash": "6ffb18cb5324",
+  "alias_of": "dmc_v3/1",
+  "elo": 2094,
+  "delta_vs_heuristic2": 3.79,
+  "note": "top Bradley-Terry Elo in final leaderboard"
+}

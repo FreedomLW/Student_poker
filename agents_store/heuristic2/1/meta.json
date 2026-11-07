@@ -1,5 +1,7 @@
 {
   "git_sha": "2e47485",
   "date": "2026-11-07T15:22:52",
-  "rules_hash": "6ffb18cb5324"
+  "rules_hash": "6ffb18cb5324",
+  "elo": 1500,
+  "delta_vs_heuristic2": 0.0
 }

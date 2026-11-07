@@ -2,5 +2,7 @@
   "git_sha": "d75976a",
   "date": "2026-11-07T15:31:14",
   "rules_hash": "6ffb18cb5324",
-  "note": "PIMC 16 worlds, heuristic2c rollouts"
+  "note": "PIMC 16 worlds, heuristic2c rollouts",
+  "elo": 1957,
+  "delta_vs_heuristic2": 4.41
 }
