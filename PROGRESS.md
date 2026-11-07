@@ -5,8 +5,8 @@
 - [x] Фаза 2: env/aec.py (AEC-подобный API + features.py, obs_dim=341 для 4 игроков), registry/store.py (спеки агентов + agents_store), eval/harness.py (duplicate vs-field, pairwise ABAB/BABA, Bradley–Terry Elo, bootstrap CI), eval/leaderboard.py
 - [x] Фаза 3: точный эквилибриум 1-карточных раздач (analysis/one_card.py, полный перебор 45M раскладов, fictitious play 40 итераций, exploitability ≤0.02 очк/раздачу); точный max^n солвер розыгрыша (agents/solver.py) для ≤4 карт
 - [x] Фаза 4: PIMC (agents/pimc.py): +3.9 [3.2, 4.5] очк/раздачу vs heuristic-поле (40 партий, samples=16), ~3.3 с/партию
-- [~] Фаза 5: DMC (train/dmc.py) dmc_v1 идёт 110 мин, ~14k сэмплов/с; чекпоинты: 8.4M −0.41, 16.5M +1.47 vs heuristic
-- [ ] Фаза 6: инсайды, README
+- [x] Фаза 5: DMC v1 (одна сеть, 90.6M сэмплов), v2 (раздельные сети заказа/розыгрыша, +56M), v3 (+~80M, lr 5e-5, идёт до ~18:35)
+- [~] Фаза 6: INSIGHTS.md (черновик с числами), research/tips.md (T1–T18), README; финальный лидерборд — после v3
 
 ## Числа
 - Скорость (scripts/bench.py, 1 ядро): сырой движок 10.2k раздач(9 карт)/с, 409k действий/с; полная партия (28 раздач) random-агентами 300 партий/с, heuristic 160 партий/с.
@@ -18,3 +18,7 @@
 - PIMC с NN-роллаутами (v1@34M): +3.52 [3.04, 3.96] vs h2 (30 партий) — не лучше PIMC-h2, в 3 раза медленнее.
 - Гибрид «заказ DMC v1 + розыгрыш PIMC-h2»: +3.32 [2.90, 3.69] vs h2 — заказ PIMC (роллауты) лучше заказа DMC.
 - 15:25 запущены: DMC v2 (--separate, init v1, lr 1e-4, 30% эвристик из них 80% heuristic2, 80 мин); сбор 12k раздач self-play PIMC-h2 для анализа.
+- DMC v2 финал (56M сэмплов дообучения): vs heuristic2 +3.57 [3.33, 3.82]; vs поле v1 +1.49 [1.04, 1.94]; vs heuristic +4.48.
+- Pairwise PIMC_h2c − DMC v2@36M: +0.77 [0.12, 1.44] очк/раздачу (40 пар партий), win-rate 0.525.
+- PIMC с роллаутами сетью v2: +3.50 [2.85, 4.09] vs h2 — не лучше самой v2; выигрыш PIMC_h2c vs поле h2 (+4.39) частично объясняется тем, что роллауты = точная модель соперников-h2.
+- 17:05 запущен предварительный лидерборд (без v3), кеш в runs/eval/lb_cache.json.
