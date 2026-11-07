@@ -67,6 +67,11 @@ def exp_dark(best, deals):
     return res
 
 
+def exp_ace(best, deals):
+    return {"ace_first": run_seatwise(f"wrap:base={tilde(best)},mode=ace_first", best, [4, 6, 9], deals,
+                                      label="Т14: первая взятка — заход с некозырного туза, если нужны взятки")}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("exp")
@@ -74,7 +79,7 @@ def main(argv=None):
     ap.add_argument("--deals", type=int, default=600)
     a = ap.parse_args(argv)
     os.makedirs(OUT, exist_ok=True)
-    exps = {"shade": exp_shade, "joker": exp_joker, "dark": exp_dark}
+    exps = {"shade": exp_shade, "joker": exp_joker, "dark": exp_dark, "ace": exp_ace}
     todo = list(exps) if a.exp == "all" else [a.exp]
     for e in todo:
         r = exps[e](a.best, a.deals)

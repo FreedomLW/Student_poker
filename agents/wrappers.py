@@ -86,6 +86,13 @@ class WrapAgent(Agent):
                 est = self.napkin_est(o) - self.delta
                 return nearest_legal_bid(legal, est)
             return self.base.act(o, legal)
+        if m == "ace_first":  # T14: lead a side ace on the first trick when tricks are needed
+            from engine.core import NR
+            if not o.t_players and o.tricks_done == 0 and o.bids[o.me] > o.won[o.me]:
+                aces = [a for a in legal if a < 36 and a % NR == 8 and a // NR != o.trump]
+                if aces:
+                    return aces[0]
+            return self.base.act(o, legal)
         if m == "joker_never_low":
             f = [a for a in legal if a != A_J_FOLLOW_LOW and not (A_J_LEAD_LOW <= a < BID_OFFSET)]
             return self.base.act(o, f or legal)
