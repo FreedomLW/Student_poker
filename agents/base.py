@@ -10,3 +10,8 @@ class Agent:
 
     def new_deal(self):
         pass
+
+    def reseed(self, seed: int):
+        rng = getattr(self, "rng", None)
+        if rng is not None:
+            rng.seed(seed)
