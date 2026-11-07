@@ -77,6 +77,84 @@ def forbidden_masks(o) -> list:
     return forb
 
 
+def history_actions(o):
+    """Reconstruct the full action sequence (bids, then plays) of the current deal from public info."""
+    from engine.core import A_J_FOLLOW_HIGH, A_J_FOLLOW_LOW, A_J_LEAD_HIGH, A_J_LEAD_LOW, K_JLOW, K_NORMAL
+    jm = o.rules.joker_mask
+    seq = [(p, BID_OFFSET + b) for p, b in o.bid_history]
+    tricks = [(l, c, k, ls) for (l, c, k, ls, w) in o.history]
+    if o.t_players:
+        tricks.append((o.t_players[0], o.t_cards, o.t_kinds, o.lead_suit))
+    for leader, cards, kinds, ls in tricks:
+        for i, (c, kd) in enumerate(zip(cards, kinds)):
+            p = (leader + i) % o.n
+            if not ((1 << c) & jm):
+                a = c
+            elif i == 0:
+                a = (A_J_LEAD_HIGH + ls) if kd == K_JHIGH else (A_J_LEAD_LOW + ls)
+            else:
+                a = A_J_FOLLOW_HIGH if kd == K_JHIGH else A_J_FOLLOW_LOW
+            seq.append((p, a))
+    return seq
+
+
+def policy_loglik(o, worlds, nets, tau=0.5):
+    """Rebstock et al. policy-based inference: log P(observed opponent actions | world) under the NN policy
+    softmax(Q/tau), for each hypothesised world (current hands). Batched over worlds."""
+    import numpy as np
+    import torch
+    from engine.core import new_deal
+    from engine.obs import Obs
+    from env.features import encode, obs_dim
+    n = o.n
+    pb = played_by(o)
+    seq = history_actions(o)
+    D = obs_dim(n, o.rules.max_cards)
+    feats, legals, chosen, owner, phases = [], [], [], [], []
+    for wi, h in enumerate(worlds):
+        init = [h[p] | pb[p] for p in range(n)]
+        init[o.me] = o.hand | pb[o.me]
+        st = new_deal(o.rules, o.n_cards, o.dealer, hands=init, trump_card=o.trump_card, dtype=o.dtype)
+        for p, a in seq:
+            legal = legal_actions(st)
+            if p != o.me and len(legal) > 1 and a in legal and not (o.dark and st.phase == PH_BID):
+                x = np.zeros(D, np.float32)
+                encode(Obs(st, p), x)
+                feats.append(x)
+                legals.append(legal)
+                chosen.append(a)
+                owner.append(wi)
+                phases.append(0 if st.phase == PH_BID else 1)
+            if a not in legal:  # world inconsistent with the observed play
+                feats.append(None)
+                owner.append(wi)
+                legals.append(None)
+                chosen.append(None)
+                phases.append(-1)
+                break
+            step(st, a)
+    ll = np.zeros(len(worlds))
+    idx = [i for i, f in enumerate(feats) if f is not None]
+    for i, f in enumerate(feats):
+        if f is None:
+            ll[owner[i]] = -1e9
+    if idx:
+        X = torch.from_numpy(np.stack([feats[i] for i in idx]))
+        ph = np.array([phases[i] for i in idx])
+        Q = np.zeros((len(idx), 59), np.float32)
+        with torch.no_grad():
+            for k in (0, 1):
+                m = ph == k
+                if m.any():
+                    Q[m] = nets[k](X[torch.from_numpy(m)]).numpy()
+        for j, i in enumerate(idx):
+            q = np.array([Q[j][a] for a in legals[i]]) / tau
+            q -= q.max()
+            lp = q[legals[i].index(chosen[i])] - np.log(np.exp(q).sum())
+            ll[owner[i]] += lp
+    return ll
+
+
 class PIMCAgent(Agent):
     name = "pimc"
 
@@ -89,6 +167,14 @@ class PIMCAgent(Agent):
         self.sigma = sigma
         self.oversample = oversample
         self.bid_mode = bid_mode
+        self.infer = kw.get("infer", "bids")
+        self.tau = float(kw.get("tau", 0.5))
+        self.inf_nets = None
+        if self.infer == "policy":
+            import torch
+            from .learned import load_qnet
+            torch.set_num_threads(1)
+            self.inf_nets = {0: load_qnet(kw["inf_bid"]), 1: load_qnet(kw.get("inf_play", kw["inf_bid"]))}
         self.net = None
         if rollout.startswith("net"):
             # rollout="net" with net_bid/net_play paths: batched NN rollouts
@@ -148,6 +234,8 @@ class PIMCAgent(Agent):
 
     def sample_worlds(self, o, K: int, sample_me: bool = False):
         weighted = (not o.dark) and any(b >= 0 for p, b in enumerate(o.bids) if p != o.me)
+        if self.infer == "policy":
+            weighted = bool(o.bid_history or o.history or o.t_players)
         M = K * self.oversample if weighted else K
         worlds = []
         for _ in range(M):
@@ -156,6 +244,12 @@ class PIMCAgent(Agent):
                 worlds.append(h)
         if not worlds:
             return []
+        if self.infer == "policy" and len(worlds) > K and (o.bid_history or o.history or o.t_players):
+            import numpy as np
+            logw = list(policy_loglik(o, worlds, self.inf_nets, self.tau))
+            mx = max(logw)
+            w = [math.exp(x - mx) for x in logw]
+            return self._resample(worlds, w, K)
         if not weighted or len(worlds) <= K:
             return worlds[:K]
         pb = played_by(o)
@@ -173,6 +267,9 @@ class PIMCAgent(Agent):
             logw.append(lw)
         mx = max(logw)
         w = [math.exp(x - mx) for x in logw]
+        return self._resample(worlds, w, K)
+
+    def _resample(self, worlds, w, K):
         tot = sum(w)
         # systematic resampling
         out = []
