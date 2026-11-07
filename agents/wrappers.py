@@ -44,6 +44,24 @@ class WrapAgent(Agent):
     def new_deal(self):
         self.base.new_deal()
 
+    def _spite_action(self, o, legal):
+        from engine.core import step as _step
+        from engine.obs import state_from_obs
+        from .heuristic2 import smart_bid, smart_play
+        from .pimc import PIMCAgent, rollout
+        if not hasattr(self, "_pimc"):
+            self._pimc = PIMCAgent(samples=12)
+        worlds = self._pimc.sample_worlds(o, 12)
+        tot = {a: 0.0 for a in legal}
+        for h in worlds:
+            base = state_from_obs(o, h)
+            for a in legal:
+                st = base.clone()
+                _step(st, a)
+                sc = rollout(st, smart_bid, smart_play)
+                tot[a] += sum(sc) - sc[o.me]
+        return min(legal, key=lambda a: tot[a])
+
     def tree_bid(self, o):
         import pickle
         import numpy as np
@@ -85,6 +103,11 @@ class WrapAgent(Agent):
             if m == "napkin":
                 est = self.napkin_est(o) - self.delta
                 return nearest_legal_bid(legal, est)
+            return self.base.act(o, legal)
+        if m == "spite":  # T13: once the bid is surely missed (under), play to minimise opponents' total score
+            remaining = o.n_cards - o.tricks_done
+            if o.bids[o.me] - o.won[o.me] > remaining and len(legal) > 1:
+                return self._spite_action(o, legal)
             return self.base.act(o, legal)
         if m == "ace_first":  # T14: lead a side ace on the first trick when tricks are needed
             from engine.core import NR
