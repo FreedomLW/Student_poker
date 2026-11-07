@@ -81,6 +81,10 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
             while True:
                 if s.phase == 2:
                     sc = scores(s)
+                    lam = cfg.get("social", 0.0)
+                    if lam:
+                        tot_sc = sum(sc)
+                        sc = [sc[q] + lam * (tot_sc - sc[q]) / (n - 1) for q in range(n)]
                     for p in range(n):
                         for (x, a, ph, lab) in sl["traj"][p]:
                             xs.append(x)
@@ -175,6 +179,7 @@ def main(argv=None):
     ap.add_argument("--init-play", default=None)
     ap.add_argument("--ckpt-minutes", type=float, default=10)
     ap.add_argument("--learner-threads", type=int, default=1)
+    ap.add_argument("--social", type=float, default=0.0, help="reward = own + social * mean(opponents)")
     ap.add_argument("--aux", type=float, default=0.0, help="weight of auxiliary hidden-card-location loss (0 = off)")
     a = ap.parse_args(argv)
     torch.set_num_threads(a.learner_threads)
@@ -208,7 +213,7 @@ def main(argv=None):
     shared = make_shared()
     past_shared = make_shared()
     cfg = dict(hidden=a.hidden, batch_deals=a.batch_deals, eps=a.eps, p_heur=a.p_heur, p_heur2=a.p_heur2,
-               p_past=a.p_past, chunk=4096, sync_every=50, aux=a.aux > 0)
+               p_past=a.p_past, chunk=4096, sync_every=50, aux=a.aux > 0, social=a.social)
     aux_heads = {}
     if a.aux > 0:
         for ph in phases:

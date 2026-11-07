@@ -101,7 +101,7 @@ def encode(o, out: np.ndarray | None = None) -> np.ndarray:
     sb = sum(b for b in o.bids if b >= 0)
     x[i + 2] = sb / k
     nb = sum(1 for b in o.bids if b >= 0)
-    x[i + 3] = (k - sb) / k if (nb == n - 1 and o.rules.dealer_hook and 0 <= k - sb <= k) else -1
+    x[i + 3] = (k - sb) / k if (nb == n - 1 and o.rules.hook_applies(k) and 0 <= k - sb <= k) else -1
     i += 4
     plain = o.hand & ~jm
     for su in range(4):

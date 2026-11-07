@@ -51,7 +51,7 @@ def test_properties_random_play(n):
         assert all(h == 0 for h in s.hands)
         assert sum(s.won) == k
         assert len(s.history) == k
-        if rules.dealer_hook:
+        if rules.hook_applies(k):
             assert sum(s.bids) != k
         assert len(scores(s)) == n
 
@@ -258,3 +258,12 @@ def test_house_joker_follow_as_7s_can_win():
     step(s, C("8S"))
     step(s, C("9C"))
     assert s.won == [0, 0, 1, 0]
+
+
+def test_house_hook_only_from_4_cards():
+    for k, restricted in ((1, False), (3, False), (4, True), (9, True)):
+        s = new_deal(OURS, k, 3, 7)
+        for b in (1, 0, 0):
+            step(s, BID_OFFSET + b)
+        bids = [a - BID_OFFSET for a in legal_actions(s)]
+        assert ((k - 1) in bids) != restricted

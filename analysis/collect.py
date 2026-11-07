@@ -77,7 +77,7 @@ def _task(args):
         f = hand_features(s.init_hands[p], s.trump, jm)
         order = [(s.first_seat + j) % n for j in range(n)]
         prev = sum(s.bids[q] for q in order[:seat])
-        forb = (n_cards - prev) if (seat == n - 1 and rules.dealer_hook) else -1
+        forb = (n_cards - prev) if (seat == n - 1 and rules.hook_applies(n_cards)) else -1
         ji = jinfo.get(p, (-1, -1, -1, -1, -1))
         rec = [seed, n_cards, DTYPES[dtype], seat, int(seat == n - 1), s.trump] + [f[k] for k in FIELDS[6:18]] + \
               [s.bids[p], prev, forb, s.won[p], sc[p], sorted(set(specs)).index(specs[p])] + \

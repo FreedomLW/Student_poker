@@ -75,7 +75,7 @@ class WrapAgent(Agent):
         seat = o.my_seat
         prev = sum(o.bids[q] for q in order[:seat])
         f.update(n_cards=o.n_cards, seat=seat, is_trump_deal=int(o.trump >= 0), prev_bid_sum=prev,
-                 forbidden_rel=(o.n_cards - prev) if (seat == o.n - 1 and o.rules.dealer_hook) else -1)
+                 forbidden_rel=(o.n_cards - prev) if (seat == o.n - 1 and o.rules.hook_applies(o.n_cards)) else -1)
         x = np.array([[f[k] for k in self._tree["feats"]]])
         return int(self._tree["clf"].predict(x)[0])
 

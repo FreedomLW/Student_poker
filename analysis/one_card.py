@@ -89,7 +89,7 @@ N_HIST = 1 + 2 + 4 + 8
 
 def dealer_forced(prefix):
     s = sum(prefix)
-    if not R.dealer_hook:
+    if not R.hook_applies(1):
         return None
     if s == 0:
         return 0

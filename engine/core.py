@@ -187,7 +187,7 @@ def new_deal(rules: Rules, n_cards: int, dealer: int, rng: random.Random | int |
 # ---------------------------------------------------------------------- legal
 def legal_bids(s: State) -> list:
     out = list(range(s.n_cards + 1))
-    if s.rules.dealer_hook and s.n_bids == s.n - 1:
+    if s.rules.dealer_hook and s.n_bids == s.n - 1 and s.n_cards >= s.rules.hook_min_cards:
         forbidden = s.n_cards - sum(b for b in s.bids if b >= 0)
         if 0 <= forbidden <= s.n_cards:
             out.remove(forbidden)

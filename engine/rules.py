@@ -52,6 +52,7 @@ class Rules:
     trump_fixed_suit: int
     joker_follow_low: str    # "as_card" (plays as the ordinary card, e.g. 7S) | "discard" (never wins)
     dealer_hook: bool
+    hook_min_cards: int      # the dealer restriction applies only when n_cards >= this
     dark_sees_trump: bool
     must_follow: bool
     must_trump: bool
@@ -72,6 +73,9 @@ class Rules:
         for j in self.jokers:
             m |= 1 << j
         return m
+
+    def hook_applies(self, n_cards: int) -> bool:
+        return self.dealer_hook and n_cards >= self.hook_min_cards
 
     def score(self, bid: int, tricks: int, dark: bool = False) -> int:
         if tricks == bid:
@@ -128,6 +132,7 @@ def rules_from_dict(raw: dict) -> Rules:
         trump_fixed_suit=SUITS.index(str(t.get("fixed_suit", "D")).upper()),
         joker_follow_low=p.get("joker_follow_low", "discard"),
         dealer_hook=bool(b.get("dealer_hook", True)),
+        hook_min_cards=int(b.get("hook_min_cards", 1)),
         dark_sees_trump=bool(b.get("dark_sees_trump", True)),
         must_follow=bool(p.get("must_follow", True)),
         must_trump=bool(p.get("must_trump", True)),

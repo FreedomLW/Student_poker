@@ -1,0 +1,8 @@
+{
+  "git_sha": "7fb193b",
+  "date": "2026-11-07T22:59:08",
+  "rules_hash": "2cdffc545af6",
+  "rules": "house (hook always)",
+  "init": "house_A",
+  "samples": 82592234
+}
