@@ -1,0 +1,6 @@
+{
+  "git_sha": "2828c0b",
+  "date": "2026-11-07T16:54:52",
+  "rules_hash": "6ffb18cb5324",
+  "note": "PIMC 16 worlds, batched rollouts with dmc_v2 nets, exact max^n <=2 tricks"
+}

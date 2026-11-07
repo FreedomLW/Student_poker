@@ -1,0 +1,9 @@
+{
+  "kind": "pimc",
+  "kwargs": {
+    "samples": 16,
+    "rollout": "net",
+    "net_bid": "agents_store/dmc_v2/1/bidnet.pt",
+    "net_play": "agents_store/dmc_v2/1/playnet.pt"
+  }
+}
