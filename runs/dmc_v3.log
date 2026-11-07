@@ -1,0 +1,5 @@
+[0.5m] samples=442859 upd=804 loss=1.9469 bidloss=2.1699 ret=1.238 rate=14458/s
+[1.0m] samples=876802 upd=1631 loss=1.9688 bidloss=2.2455 ret=1.213 rate=14088/s
+[1.5m] samples=1240841 upd=2325 loss=1.8398 bidloss=2.2264 ret=1.236 rate=13421/s
+[2.1m] samples=1617011 upd=3044 loss=1.8722 bidloss=2.1667 ret=1.227 rate=13088/s
+[2.6m] samples=2009917 upd=3792 loss=1.8704 bidloss=2.1786 ret=1.211 rate=13043/s
