@@ -1,0 +1,13 @@
+{
+  "git_sha": "a51ea61",
+  "date": "2026-11-07T20:11:23",
+  "rules_hash": "6ffb18cb5324",
+  "train_samples": "v3 + 80.7M",
+  "lr": 5e-05,
+  "bs": 2048,
+  "buffer": 1000000,
+  "p_past": 0.3,
+  "actor_seeds": "1000+aid",
+  "vs_dmc_v3_field": "+0.14 [-0.08, +0.34] (100 games)",
+  "note": "plateau: not significantly better than v3"
+}
