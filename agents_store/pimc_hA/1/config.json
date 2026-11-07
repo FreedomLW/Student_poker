@@ -1,0 +1,12 @@
+{
+  "kind": "pimc",
+  "kwargs": {
+    "samples": 16,
+    "rollout": "net",
+    "net_bid": "agents_store/house_A/1/bidnet.pt",
+    "net_play": "agents_store/house_A/1/playnet.pt",
+    "infer": "policy",
+    "inf_bid": "agents_store/house_A/1/bidnet.pt",
+    "inf_play": "agents_store/house_A/1/playnet.pt"
+  }
+}
