@@ -81,7 +81,7 @@ class PIMCAgent(Agent):
     name = "pimc"
 
     def __init__(self, seed: int = 0, samples: int = 24, exact_tricks: int = 3, bid_samples: int | None = None,
-                 sigma: float = 0.9, oversample: int = 3, bid_mode: str = "rollout", **kw):
+                 sigma: float = 0.9, oversample: int = 3, bid_mode: str = "rollout", rollout: str = "h1", **kw):
         self.rng = random.Random(seed)
         self.K = samples
         self.KB = bid_samples or samples
@@ -89,6 +89,11 @@ class PIMCAgent(Agent):
         self.sigma = sigma
         self.oversample = oversample
         self.bid_mode = bid_mode
+        if rollout == "h2":
+            from .heuristic2 import smart_bid, smart_play
+            self.pol = (smart_bid, smart_play)
+        else:
+            self.pol = (heuristic_bid, heuristic_play)
 
     # ------------------------------------------------------------ sampling
     def _sample_raw(self, o, sample_me: bool):
@@ -174,7 +179,7 @@ class PIMCAgent(Agent):
         remaining = s.n_cards - s.tricks_done
         if s.phase != PH_BID and remaining <= self.exact_tricks:
             return solve(s)[me]
-        return rollout(s)[me]
+        return rollout(s, *self.pol)[me]
 
     def action_values(self, o, legal):
         me = o.me
@@ -193,7 +198,7 @@ class PIMCAgent(Agent):
 
     def act(self, obs, legal):
         if obs.phase == PH_BID and self.bid_mode == "heuristic":
-            return heuristic_bid(obs, obs.me, obs.hand, legal)
+            return self.pol[0](obs, obs.me, obs.hand, legal)
         vals = self.action_values(obs, legal)
         best = max(vals.values())
         cands = [a for a in legal if vals[a] >= best - 1e-9]
