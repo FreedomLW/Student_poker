@@ -113,3 +113,15 @@
 [58.0m] samples=48820762 upd=94425 loss=1.9325 bidloss=2.3229 ret=0.968 rate=14035/s
 [58.5m] samples=49246078 upd=95249 loss=1.8713 bidloss=2.0876 ret=0.963 rate=14032/s
 [59.0m] samples=49717479 upd=96161 loss=1.8834 bidloss=2.0005 ret=0.979 rate=14043/s
+[59.5m] samples=50176388 upd=97049 loss=1.8904 bidloss=2.4060 ret=0.938 rate=14050/s
+[60.0m] samples=50622957 upd=97913 loss=1.8614 bidloss=2.3476 ret=0.984 rate=14053/s
+[60.5m] samples=51032824 upd=98705 loss=1.8920 bidloss=2.1143 ret=0.961 rate=14049/s
+[61.0m] samples=51437862 upd=99489 loss=1.8671 bidloss=1.7384 ret=0.980 rate=14043/s
+[61.6m] samples=51872234 upd=100329 loss=1.8762 bidloss=2.3308 ret=0.956 rate=14043/s
+[62.1m] samples=52285776 upd=101129 loss=1.8621 bidloss=2.3946 ret=0.979 rate=14036/s
+[62.6m] samples=52657406 upd=101849 loss=1.8779 bidloss=2.2457 ret=0.986 rate=14023/s
+[63.1m] samples=53078791 upd=102665 loss=1.8766 bidloss=2.0042 ret=0.977 rate=14018/s
+[63.6m] samples=53484142 upd=103449 loss=1.8872 bidloss=2.2713 ret=0.966 rate=14011/s
+[64.1m] samples=53868877 upd=104193 loss=1.8972 bidloss=2.3673 ret=0.968 rate=14000/s
+[64.6m] samples=54262363 upd=104953 loss=1.8715 bidloss=2.1634 ret=0.980 rate=13992/s
+[65.1m] samples=54671822 upd=105745 loss=1.8972 bidloss=2.5351 ret=0.981 rate=13987/s

@@ -89,7 +89,15 @@ class PIMCAgent(Agent):
         self.sigma = sigma
         self.oversample = oversample
         self.bid_mode = bid_mode
-        if rollout == "h2":
+        self.net = None
+        if rollout.startswith("net"):
+            # rollout="net" with net_bid/net_play paths: batched NN rollouts
+            import torch
+            from .learned import load_qnet
+            torch.set_num_threads(1)
+            self.net = {0: load_qnet(kw["net_bid"]), 1: load_qnet(kw.get("net_play", kw["net_bid"]))}
+            self.exact_tricks = kw.get("net_exact", 2)
+        if rollout == "h2" or rollout.startswith("net"):
             from .heuristic2 import smart_bid, smart_play
             self.pol = (smart_bid, smart_play)
         else:
@@ -181,8 +189,77 @@ class PIMCAgent(Agent):
             return solve(s)[me]
         return rollout(s, *self.pol)[me]
 
+    def _net_rollouts(self, states, me):
+        """Play all states to the end with the NN policy (batched). Returns my score per state."""
+        import numpy as np
+        import torch
+        from engine.obs import Obs
+        from env.features import encode, obs_dim
+        out = [None] * len(states)
+        live = []
+        for i, s in enumerate(states):
+            if s.phase == PH_DONE:
+                out[i] = scores(s)[me]
+            elif s.phase != PH_BID and s.n_cards - s.tricks_done <= self.exact_tricks:
+                out[i] = solve(s)[me]
+            else:
+                live.append(i)
+        D = obs_dim(states[0].n, states[0].rules.max_cards)
+        buf = np.zeros((len(states), D), np.float32)
+        while live:
+            nxt = []
+            pend = []
+            for i in live:
+                s = states[i]
+                legal = legal_actions(s)
+                if len(legal) == 1:
+                    step(s, legal[0])
+                else:
+                    pend.append((i, legal))
+            if pend:
+                phs = np.array([0 if states[i].phase == PH_BID else 1 for i, _ in pend])
+                for j, (i, _) in enumerate(pend):
+                    encode(Obs(states[i], states[i].cur), buf[j])
+                q = np.zeros((len(pend), 59), np.float32)
+                xb = torch.from_numpy(buf[: len(pend)])
+                with torch.no_grad():
+                    for ph in (0, 1):
+                        m = phs == ph
+                        if m.any():
+                            q[m] = self.net[ph](xb[torch.from_numpy(m)]).numpy()
+                for j, (i, legal) in enumerate(pend):
+                    step(states[i], max(legal, key=lambda a: q[j][a]))
+            for i in live:
+                s = states[i]
+                if s.phase == PH_DONE:
+                    out[i] = scores(s)[me]
+                elif s.phase != PH_BID and s.n_cards - s.tricks_done <= self.exact_tricks and not s.t_players:
+                    out[i] = solve(s)[me]
+                else:
+                    nxt.append(i)
+            live = nxt
+        return out
+
     def action_values(self, o, legal):
         me = o.me
+        if self.net is not None:
+            bidding = o.phase == PH_BID
+            K = self.KB if bidding else self.K
+            worlds = self.sample_worlds(o, K, sample_me=(o.hand == 0 and bidding))
+            states, keys = [], []
+            for h in worlds:
+                base = state_from_obs(o, h)
+                for a in legal:
+                    s = base.clone()
+                    step(s, a)
+                    states.append(s)
+                    keys.append(a)
+            vals = self._net_rollouts(states, me) if states else []
+            tot = {a: 0.0 for a in legal}
+            for a, v in zip(keys, vals):
+                tot[a] += v
+            k = max(1, len(worlds))
+            return {a: v / k for a, v in tot.items()}
         bidding = o.phase == PH_BID
         K = self.KB if bidding else self.K
         worlds = self.sample_worlds(o, K, sample_me=(o.hand == 0 and bidding))
