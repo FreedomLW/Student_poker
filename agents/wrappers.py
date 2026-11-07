@@ -26,10 +26,11 @@ class WrapAgent(Agent):
     name = "wrap"
 
     def __init__(self, seed: int = 0, base: str = "heuristic", mode: str = "shade", delta: float = 0,
-                 bid: int = 0, coefs: str | None = None, model_dir=None, **kw):
+                 bid: int = 0, coefs: str | None = None, comp: float = 0.0, model_dir=None, **kw):
         from registry.store import make_agent
         self.base = make_agent(base.replace("~", ":"), seed=seed)
         self.mode = mode
+        self.comp = comp
         self.delta = delta
         self.fbid = bid
         self.coefs = None
@@ -102,6 +103,11 @@ class WrapAgent(Agent):
                 return nearest_legal_bid(legal, self.tree_bid(o))
             if m == "napkin":
                 est = self.napkin_est(o) - self.delta
+                if self.comp:
+                    seat = o.my_seat
+                    order = [(o.first_seat + j) % o.n for j in range(o.n)]
+                    prev = [o.bids[q] for q in order[:seat]]
+                    est -= self.comp * (sum(prev) - len(prev) * o.n_cards / o.n)
                 return nearest_legal_bid(legal, est)
             return self.base.act(o, legal)
         if m == "spite":  # T13: once the bid is surely missed (under), play to minimise opponents' total score
