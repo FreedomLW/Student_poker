@@ -1,0 +1,6 @@
+{
+  "git_sha": "ad1c324",
+  "date": "2026-11-07T18:44:37",
+  "rules_hash": "6ffb18cb5324",
+  "note": "bid = argmax EV under MLP P(tricks|obs,bid) trained on 240k bid decisions of dmc_v3 self-play with 25% random bids; play = dmc_v3"
+}

@@ -1,0 +1,6 @@
+{
+  "kind": "biddist",
+  "kwargs": {
+    "play": "store:dmc_v3"
+  }
+}

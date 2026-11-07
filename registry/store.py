@@ -46,6 +46,11 @@ def _kinds():
         kinds["learned"] = LearnedAgent
     except ImportError:
         pass
+    try:
+        from agents.bid_dist_agent import BidDistAgent
+        kinds["biddist"] = BidDistAgent
+    except ImportError:
+        pass
     from agents.wrappers import WrapAgent
     kinds["wrap"] = WrapAgent
     from agents.hybrid import HybridAgent
