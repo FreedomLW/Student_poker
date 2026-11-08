@@ -1,0 +1,8 @@
+{
+  "git_sha": "4ba2cd6",
+  "date": "2026-11-08T00:00:06",
+  "rules_hash": "83861bfbbd11",
+  "rules": "house, hook from 4 cards",
+  "init": "house_C",
+  "reward": "own score"
+}
