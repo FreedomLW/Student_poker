@@ -41,16 +41,32 @@ class QNet(nn.Module):
         return self.net[-1](h), h
 
 
-def load_qnet(path: str) -> QNet:
+def load_qnet(path: str, in_dim: int | None = None) -> QNet:
+    """Load a QNet. If in_dim is larger than the stored input size, the first layer is zero-padded for the new
+    (appended) features, so the padded net computes exactly the same function (warm start for richer features)."""
     ck = torch.load(path, map_location="cpu", weights_only=False)
     net = QNet(ck["in_dim"], ck["hidden"])
     net.load_state_dict(ck["state_dict"])
+    net.features = ck.get("features", "v1")
+    if in_dim is not None and in_dim > ck["in_dim"]:
+        big = QNet(in_dim, ck["hidden"])
+        sd = net.state_dict()
+        w = sd["net.0.weight"]
+        w2 = torch.zeros(w.shape[0], in_dim)
+        w2[:, : w.shape[1]] = w
+        sd["net.0.weight"] = w2
+        big.load_state_dict(sd)
+        net = big
     net.eval()
     return net
 
 
 def save_qnet(net: QNet, path: str, **extra):
     torch.save(dict(in_dim=net.in_dim, hidden=net.hidden, state_dict=net.state_dict(), **extra), path)
+
+
+def net_features(net) -> str:
+    return getattr(net, "features", "v1")
 
 
 class LearnedAgent(Agent):
@@ -74,15 +90,20 @@ class LearnedAgent(Agent):
                 path = os.path.join(model_dir, "qnet.pt")
             self.net = load_qnet(path)
             self.bid_net = self.net
+        self.feats = {0: net_features(self.bid_net), 1: net_features(self.net)}
+        self.oracle = "hist_oracle" in self.feats.values()  # CHEATER: runner passes the full state
+        self._bufs = {}
         self.eps = eps
         self.bid_src = bid
         self.play_src = play
         self._buf = None
 
-    def q_values(self, obs) -> np.ndarray:
-        if self._buf is None:
-            self._buf = np.zeros(obs_dim(obs.n, obs.rules.max_cards), np.float32)
-        x = encode(obs, self._buf)
+    def q_values(self, obs, hands=None) -> np.ndarray:
+        ph = 0 if obs.phase == PH_BID else 1
+        f = self.feats[ph]
+        if f not in self._bufs:
+            self._bufs[f] = np.zeros(obs_dim(obs.n, obs.rules.max_cards, f), np.float32)
+        x = encode(obs, self._bufs[f], features=f, hands=hands)
         net = self.bid_net if obs.phase == PH_BID else self.net
         with torch.no_grad():
             return net(torch.from_numpy(x)[None])[0].numpy()
@@ -95,4 +116,10 @@ class LearnedAgent(Agent):
         if self.eps and self.rng.random() < self.eps:
             return self.rng.choice(legal)
         q = self.q_values(obs)
+        return max(legal, key=lambda a: q[a])
+
+    def act_state(self, s, legal):
+        """Cheater path: sees all hands (only for nets trained with features=hist_oracle)."""
+        from engine.obs import Obs
+        q = self.q_values(Obs(s, s.cur), hands=s.hands)
         return max(legal, key=lambda a: q[a])

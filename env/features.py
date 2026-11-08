@@ -9,7 +9,7 @@ import numpy as np
 from engine.core import K_JHIGH, K_JLOW, NR, SUIT_MASK, bit_list
 
 
-def obs_dim(n: int, max_cards: int) -> int:
+def base_dim(n: int, max_cards: int) -> int:
     return (36 * 3                  # hand, played, unseen
             + (n - 1) * 36          # current trick: card by relative player
             + (n - 1) * 2           # current trick: joker high/low by relative player
@@ -24,14 +24,60 @@ def obs_dim(n: int, max_cards: int) -> int:
             + 2)                    # joker in my hand, joker already played
 
 
-def encode(o, out: np.ndarray | None = None) -> np.ndarray:
+FEATURE_SETS = ("v1", "hist", "hist_oracle")
+
+
+def trick_dim(n: int) -> int:
+    return n * 36 + n * 2 + n + n  # card per rel player, joker high / joker-as-card per rel player, leader, winner
+
+
+def obs_dim(n: int, max_cards: int, features: str = "v1") -> int:
+    d = base_dim(n, max_cards)
+    if features in ("hist", "hist_oracle"):
+        d += (max_cards - 1) * trick_dim(n)  # every completed trick of the deal, in order
+    if features == "hist_oracle":
+        d += (n - 1) * 36  # CHEATER: the other players' current hands
+    return d
+
+
+def encode(o, out: np.ndarray | None = None, features: str = "v1", hands=None) -> np.ndarray:
+    """features: v1 (base), hist (+ full trick history), hist_oracle (+ other players' hands; needs `hands`)."""
+    n = o.n
+    d_all = obs_dim(n, o.rules.max_cards, features)
+    x = np.zeros(d_all, dtype=np.float32) if out is None else out
+    if out is not None:
+        x[:] = 0
+    _encode_base(o, x)
+    if features == "v1":
+        return x
+    i = base_dim(n, o.rules.max_cards)
+    jm = o.rules.joker_mask
+    me = o.me
+    td = trick_dim(n)
+    for t, (leader, cards, kinds, ls, w) in enumerate(o.history):
+        b = i + t * td
+        for pos, (c, kd) in enumerate(zip(cards, kinds)):
+            rel = (leader + pos - me) % n
+            x[b + rel * 36 + c] = 1
+            if (1 << c) & jm:
+                x[b + n * 36 + rel * 2 + (0 if kd == K_JHIGH else 1)] = 1
+        x[b + n * 38 + (leader - me) % n] = 1
+        x[b + n * 39 + (w - me) % n] = 1
+    i += (o.rules.max_cards - 1) * td
+    if features == "hist_oracle":
+        for rel in range(1, n):
+            for c in bit_list(hands[(me + rel) % n]):
+                x[i + (rel - 1) * 36 + c] = 1
+        i += (n - 1) * 36
+    assert i == d_all
+    return x
+
+
+def _encode_base(o, x):
     n = o.n
     k = o.n_cards
     mc = o.rules.max_cards
-    d = obs_dim(n, mc)
-    x = np.zeros(d, dtype=np.float32) if out is None else out
-    if out is not None:
-        x[:] = 0
+    d = base_dim(n, mc)
     me = o.me
     jm = o.rules.joker_mask
     i = 0

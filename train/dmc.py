@@ -37,7 +37,9 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
     rng = random.Random(1000 + aid)
     R = default_rules()
     n = R.n_players
-    D = obs_dim(n, R.max_cards)
+    FEAT = cfg.get("features", "v1")
+    D = obs_dim(n, R.max_cards, FEAT)
+
     def clone(dct):
         out = {}
         for ph, m in dct.items():
@@ -115,7 +117,7 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
             continue
         phs = np.zeros(len(pend), np.int64)
         for j, (i, p, legal, role) in enumerate(pend):
-            encode(Obs(slots[i]["s"], p), buf[j])
+            encode(Obs(slots[i]["s"], p), buf[j], features=FEAT, hands=slots[i]["s"].hands)
             phs[j] = 0 if slots[i]["s"].phase == 0 else 1
         xb = torch.from_numpy(buf[: len(pend)])
         qn = np.zeros((len(pend), N_ACTIONS), np.float32)
@@ -179,12 +181,13 @@ def main(argv=None):
     ap.add_argument("--init-play", default=None)
     ap.add_argument("--ckpt-minutes", type=float, default=10)
     ap.add_argument("--learner-threads", type=int, default=1)
+    ap.add_argument("--features", default="v1", choices=["v1", "hist", "hist_oracle"])
     ap.add_argument("--social", type=float, default=0.0, help="reward = own + social * mean(opponents)")
     ap.add_argument("--aux", type=float, default=0.0, help="weight of auxiliary hidden-card-location loss (0 = off)")
     a = ap.parse_args(argv)
     torch.set_num_threads(a.learner_threads)
     R = default_rules()
-    D = obs_dim(R.n_players, R.max_cards)
+    D = obs_dim(R.n_players, R.max_cards, a.features)
     phases = (0, 1) if a.separate else (0,)
     hid = {0: a.bid_hidden or a.hidden, 1: a.hidden}
     models = {}
@@ -192,7 +195,7 @@ def main(argv=None):
         m = QNet(D, hid[ph])
         ip = (a.init_bid if ph == 0 else a.init_play) or a.init
         if ip:
-            src = load_qnet(ip)
+            src = load_qnet(ip, in_dim=D)
             if src.hidden == m.hidden:
                 m.load_state_dict(src.state_dict())
         models[ph] = m
@@ -213,7 +216,8 @@ def main(argv=None):
     shared = make_shared()
     past_shared = make_shared()
     cfg = dict(hidden=a.hidden, batch_deals=a.batch_deals, eps=a.eps, p_heur=a.p_heur, p_heur2=a.p_heur2,
-               p_past=a.p_past, chunk=4096, sync_every=50, aux=a.aux > 0, social=a.social)
+               p_past=a.p_past, chunk=4096, sync_every=50, aux=a.aux > 0, social=a.social,
+               features=a.features)
     aux_heads = {}
     if a.aux > 0:
         for ph in phases:
@@ -261,11 +265,11 @@ def main(argv=None):
 
     def save_all(tag, **extra):
         if a.separate:
-            save_qnet(models[0], os.path.join(out_dir, f"bidnet{tag}.pt"), **extra)
-            save_qnet(models[1], os.path.join(out_dir, f"playnet{tag}.pt"), **extra)
+            save_qnet(models[0], os.path.join(out_dir, f"bidnet{tag}.pt"), features=a.features, **extra)
+            save_qnet(models[1], os.path.join(out_dir, f"playnet{tag}.pt"), features=a.features, **extra)
             return os.path.join(out_dir, f"bidnet{tag}.pt"), os.path.join(out_dir, f"playnet{tag}.pt")
         path = os.path.join(out_dir, f"qnet{tag}.pt" if tag == "" else f"ckpt{tag}.pt")
-        save_qnet(models[0], path, **extra)
+        save_qnet(models[0], path, features=a.features, **extra)
         return path, path
 
     while time.time() - t0 < a.minutes * 60:

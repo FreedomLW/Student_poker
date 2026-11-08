@@ -15,6 +15,8 @@ def play_deal(s, agents, record=None):
         if len(legal) == 1:
             a = legal[0]
             agents[p].observe_forced(s, p, a) if hasattr(agents[p], "observe_forced") else None
+        elif getattr(agents[p], "oracle", False):  # CHEATER reference agents see the full state
+            a = agents[p].act_state(s, legal)
         else:
             a = agents[p].act(Obs(s, p), legal)
         if record is not None:
