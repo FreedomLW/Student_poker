@@ -1,0 +1,9 @@
+{
+  "git_sha": "321d223",
+  "date": "2026-11-08T07:20:56",
+  "rules_hash": "83861bfbbd11",
+  "features": "hist_oracle",
+  "note": "CHEATER: sees all hands",
+  "init": "house_E (zero-padded)",
+  "social": 0.5
+}
