@@ -1,0 +1,28 @@
+{
+ "name": "p3_A",
+ "minutes": 120.0,
+ "actors": 3,
+ "batch_deals": 64,
+ "eps": 0.03,
+ "p_heur": 0.25,
+ "p_heur2": 0.8,
+ "p_past": 0.15,
+ "lr": 0.0003,
+ "bs": 1024,
+ "buffer": 400000,
+ "hidden": [
+  512,
+  512,
+  256
+ ],
+ "bid_hidden": null,
+ "separate": true,
+ "init": null,
+ "init_bid": null,
+ "init_play": null,
+ "ckpt_minutes": 10,
+ "learner_threads": 1,
+ "features": "v1",
+ "social": 0.5,
+ "aux": 0.0
+}

@@ -106,7 +106,12 @@ def build_schedule(n: int, sched: dict) -> tuple:
 
 
 def load_rules(path: str | None = None, overrides: dict | None = None) -> Rules:
-    with open(path or DEFAULT_RULES_PATH) as f:
+    """path=None -> $ODESSA_RULES if set (e.g. rules_variants/house_3p.yaml), else rules.yaml."""
+    if path is None:
+        path = os.environ.get("ODESSA_RULES") or DEFAULT_RULES_PATH
+        if not os.path.isabs(path):
+            path = os.path.join(ROOT, path)
+    with open(path) as f:
         raw = yaml.safe_load(f)
     if overrides:
         raw = _deep_update(copy.deepcopy(raw), overrides)
