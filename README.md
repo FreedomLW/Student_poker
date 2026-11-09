@@ -23,6 +23,13 @@ duplicate-турниры с Elo и анализ стратегии.
 козырь ≈ +0.65 взятки, некозырный туз в коротких раздачах почти ничего не стоит; джокер ≈ +6…+20 очков и +25…+40 п.п.
 к шансу выполнить заказ; сдающий теряет 6.5 очка в 1-карточной раздаче из-за правила сдающего; в тёмной — заказ 2.
 
+### Вариант на 3 игроков
+```bash
+export ODESSA_RULES=rules_variants/house_3p.yaml       # все скрипты (eval, train, play, analysis) читают эти правила
+python -m play.cli --opponents store:best_3p
+python -m eval.selfplay_score store:best_3p --games 200
+```
+
 ## Быстрый старт
 
 ```bash

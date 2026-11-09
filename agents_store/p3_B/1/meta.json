@@ -1,0 +1,9 @@
+{
+  "git_sha": "2d37857",
+  "date": "2026-11-09T14:12:52",
+  "rules_hash": "8ee5f81ffbc2",
+  "rules": "rules_variants/house_3p.yaml",
+  "init": "p3_A",
+  "social": 0.5,
+  "note": "3 players"
+}
