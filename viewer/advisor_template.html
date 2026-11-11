@@ -65,8 +65,9 @@ const ROW_ORDER = [2, 0, 3, 1];                 // ♦ (trump) ♠ ♥ ♣
 const MODELS = {};
 function model(n) { if (!MODELS[n]) MODELS[n] = {bid: A.loadNet(MODELS_RAW[n].bid), play: A.loadNet(MODELS_RAW[n].play)}; return MODELS[n]; }
 const LS = "odessa_advisor_v1";
-let ST = JSON.parse(localStorage.getItem(LS) || "null") || {n: 3, stage: "setup", k: null, order: null, dark: false, hand: [], log: []};
-function save() { localStorage.setItem(LS, JSON.stringify(ST)); }
+function loadSaved() { try { return JSON.parse(localStorage.getItem(LS) || "null"); } catch (e) { return null; } }
+let ST = loadSaved() || {n: 3, stage: "setup", k: null, order: null, dark: false, hand: [], log: []};
+function save() { try { localStorage.setItem(LS, JSON.stringify(ST)); } catch (e) { /* storage unavailable: keep state in memory */ } }
 
 function cardName(c) { return c === A.JOKER ? "Дж" : RANKS[A.rankOf(c)] + SUITS[A.suitOf(c)]; }
 function cardCls(c) { const s = A.suitOf(c); return c === A.JOKER ? "joker" : (s === 2 ? "red trump" : (s === 3 ? "red" : "")); }
