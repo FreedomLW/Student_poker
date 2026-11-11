@@ -177,7 +177,9 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
                         qp[mp_] = past[ph](xb[torch.from_numpy(mp_)]).numpy()
         for j, (i, p, legal, role) in enumerate(pend):
             q = qp[j] if role == "past" else qn[j]
-            if role == "net" and rng.random() < eps:
+            s_ = slots[i]["s"]
+            e_ = cfg.get("eps_dark", 0.0) if (s_.dark and s_.phase == 0) else eps
+            if role == "net" and rng.random() < e_:
                 a = rng.choice(legal)
             else:
                 a = max(legal, key=lambda z: q[z])
@@ -225,6 +227,7 @@ def main(argv=None):
     ap.add_argument("--init-play", default=None)
     ap.add_argument("--ckpt-minutes", type=float, default=10)
     ap.add_argument("--learner-threads", type=int, default=1)
+    ap.add_argument("--eps-dark", type=float, default=0.0, help="exploration rate for dark bids (0 = use --eps)")
     ap.add_argument("--game", action="store_true", help="play whole games; reward = win (+ deal margin shaping)")
     ap.add_argument("--win-w", type=float, default=3.0)
     ap.add_argument("--margin-w", type=float, default=0.5, help="weight of (own - mean opponents) deal score")
@@ -265,7 +268,7 @@ def main(argv=None):
     past_shared = make_shared()
     cfg = dict(hidden=a.hidden, batch_deals=a.batch_deals, eps=a.eps, p_heur=a.p_heur, p_heur2=a.p_heur2,
                p_past=a.p_past, chunk=4096, sync_every=50, aux=a.aux > 0, social=a.social,
-               features=a.features, game=a.game, win_w=a.win_w, margin_w=a.margin_w, own_w=a.own_w)
+               features=a.features, game=a.game, eps_dark=a.eps_dark or a.eps, win_w=a.win_w, margin_w=a.margin_w, own_w=a.own_w)
     aux_heads = {}
     if a.aux > 0:
         for ph in phases:
