@@ -48,6 +48,7 @@
   .hand { display:flex; flex-wrap:wrap; gap:4px; }
   .log { font-size:13px; color:var(--muted); max-height:160px; overflow:auto; }
   .warn { color:var(--warn); font-size:13px; }
+  .btnlike { display:inline-block; border:1px solid #2c2c30; background:#2c2c30; color:#fff; border-radius:9px; padding:9px 13px; font-weight:600; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -68,6 +69,71 @@ const LS = "odessa_advisor_v1";
 function loadSaved() { try { return JSON.parse(localStorage.getItem(LS) || "null"); } catch (e) { return null; } }
 let ST = loadSaved() || {n: 3, stage: "setup", k: null, order: null, dark: false, hand: [], log: []};
 function save() { try { localStorage.setItem(LS, JSON.stringify(ST)); } catch (e) { /* storage unavailable: keep state in memory */ } }
+
+// ---------------------------------------------------------------- photo -> cards (asks Claude via the page's `sample` capability)
+let SAMPLE = null, PHOTO_MSG = "", PHOTO_BUSY = false;
+(async () => {
+  try {
+    if (window.claude && window.claude.use) {
+      const s = await window.claude.use("sample");
+      if (s) { const lim = await s.limits(); if (lim && lim.images) SAMPLE = s; }
+      render();
+    }
+  } catch (e) { SAMPLE = null; }
+})();
+async function shrink(file) {
+  const bmp = await createImageBitmap(file);
+  const sc = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(bmp.width * sc); cv.height = Math.round(bmp.height * sc);
+  cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+  return await new Promise(r => cv.toBlob(r, "image/jpeg", 0.85));
+}
+const PHOTO_PROMPT = `На фото — веер игральных карт в руке игрока, русская колода 36 карт.
+Ранги: 6, 7, 8, 9, 10, В (валет), Д (дама), К (король), Т (туз). Масти: ♠ пики, ♣ трефы, ♦ бубны, ♥ черви.
+Карты лежат веером, часто виден только левый верхний угол с рангом и мастью. Перечисли КАЖДУЮ карту в руке (не карты на столе
+и не в фоне), каждую не больше одного раза. Ответь только JSON без пояснений:
+{"cards": ["AS", "10D", "JC", ...], "unsure": [...]}
+Коды: ранг 6,7,8,9,10,J,Q,K,A (В=J, Д=Q, К=K, Т=A) + масть S (♠), C (♣), D (♦), H (♥).
+В "unsure" — карты из "cards", в которых ты не уверен.`;
+function codeToId(code) {
+  const m = String(code).trim().toUpperCase().match(/^(10|[6-9JQKA])([SCDH])$/);
+  if (!m) return null;
+  return "SCDH".indexOf(m[2]) * 9 + ["6","7","8","9","10","J","Q","K","A"].indexOf(m[1]);
+}
+async function recognizePhoto(file) {
+  if (!SAMPLE || PHOTO_BUSY) return;
+  PHOTO_BUSY = true; PHOTO_MSG = "Распознаю карты…"; render();
+  try {
+    const blob = await shrink(file);
+    const res = await SAMPLE.json(PHOTO_PROMPT, {images: [blob], modelTier: "default"});
+    const ids = [...new Set((res && res.cards || []).map(codeToId).filter(c => c !== null))];
+    const unsure = (res && res.unsure || []).map(codeToId).filter(c => c !== null);
+    if (!ids.length) throw new Error("карты не найдены");
+    const mx = Math.floor(36 / ST.n);
+    if (ST.stage === "setup") { ST.k = Math.min(ids.length, mx); ST.stage = "hand"; }
+    ST.hand = ids.slice(0, mx);
+    const parts = [`Распознано ${ids.length} карт: ${ids.map(cardName).join(" ")}.`];
+    if (unsure.length) parts.push(`Не уверен: ${unsure.map(cardName).join(" ")} — проверьте.`);
+    if (ids.length !== ST.k) parts.push(`В раздаче ${ST.k} карт — поправьте выбор вручную.`);
+    PHOTO_MSG = parts.join(" ");
+    save();
+  } catch (e) {
+    PHOTO_MSG = e && e.code === "rate_limited" ? "Слишком много запросов — попробуйте через минуту."
+              : e && e.code === "not_granted" ? "Распознавание по фото не разрешено для этой страницы."
+              : "Не получилось распознать: " + (e && (e.message || e.code) || e) + ". Отметьте карты вручную.";
+  }
+  PHOTO_BUSY = false; render();
+}
+function photoBlock(label) {
+  if (!SAMPLE) return null;
+  const d = el(`<div style="margin:8px 0"><label class="btnlike"><input type="file" accept="image/*" style="display:none">📷 ${label}</label>
+    <div class="note" style="margin-top:6px">${PHOTO_MSG}</div></div>`);
+  const inp = d.querySelector("input");
+  inp.disabled = PHOTO_BUSY;
+  inp.onchange = () => { if (inp.files && inp.files[0]) recognizePhoto(inp.files[0]); };
+  return d;
+}
 
 function cardName(c) { return c === A.JOKER ? "Дж" : RANKS[A.rankOf(c)] + SUITS[A.suitOf(c)]; }
 function cardCls(c) { const s = A.suitOf(c); return c === A.JOKER ? "joker" : (s === 2 ? "red trump" : (s === 3 ? "red" : "")); }
@@ -112,6 +178,10 @@ function renderSetup(app) {
     b.onclick = () => { ST.order = o; save(); render(); }; p.querySelector("#oo").appendChild(b);
   }
   const dk = p.querySelector("#dark"); dk.checked = ST.dark; dk.onchange = () => { ST.dark = dk.checked; save(); };
+  if (ST.order !== null) {
+    const pb = photoBlock("Карты по фото (число карт определится само)");
+    if (pb) p.appendChild(pb);
+  }
   const go = p.querySelector("#go"); go.disabled = !(ST.k && ST.order !== null);
   go.onclick = () => { ST.stage = "hand"; ST.hand = []; save(); render(); };
 }
@@ -121,6 +191,8 @@ function renderHand(app) {
   p.innerHTML = `<div class="lab">Отметьте свои карты: выбрано <b>${ST.hand.length}</b> из <b>${ST.k}</b>. Козырь — ♦, джокер — 7♠ («Дж»).</div><div id="grid"></div>
     <div class="row" style="margin-top:10px"><button id="back">← Назад</button><button class="primary" id="ok">Карты введены</button></div>`;
   app.appendChild(p);
+  const pb = photoBlock("Заполнить по фото");
+  if (pb) p.insertBefore(pb, p.querySelector("#grid"));
   const g = p.querySelector("#grid");
   ROW_ORDER.forEach(su => {
     const r = el(`<div class="suitrow"><span class="suitlab" style="color:${su >= 2 ? "var(--red)" : "inherit"}">${SUITS[su]}</span></div>`);
