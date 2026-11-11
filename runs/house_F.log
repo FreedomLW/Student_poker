@@ -54,3 +54,7 @@
 [27.9m] samples=18964557 upd=18056 loss=1.3839 bidloss=1.4996 ret=0.577 rate=11349/s
 [28.4m] samples=19344945 upd=18420 loss=1.3613 bidloss=1.5077 ret=0.580 rate=11371/s
 [28.9m] samples=19687982 upd=18749 loss=1.3287 bidloss=1.4792 ret=0.587 rate=11368/s
+[29.4m] samples=20072634 upd=19115 loss=1.3222 bidloss=1.4706 ret=0.591 rate=11391/s
+[29.9m] samples=20452714 upd=19477 loss=1.3352 bidloss=1.4663 ret=0.555 rate=11412/s
+[30.4m] samples=20824454 upd=19833 loss=1.3525 bidloss=1.4853 ret=0.553 rate=11424/s
+[30.9m] samples=21155643 upd=20148 loss=1.3550 bidloss=1.4814 ret=0.554 rate=11411/s
