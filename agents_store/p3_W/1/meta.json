@@ -1,0 +1,9 @@
+{
+  "git_sha": "4e4f83f",
+  "date": "2026-11-11T06:58:09",
+  "rules_hash": "7e7cfce263bc",
+  "rules": "house_3p, over=taken, dark x1",
+  "init": "p3_B",
+  "features": "v1g (sees game score)",
+  "reward": "1*(win-1/3) + 0.5*own/10 + 0.5*(own-mean opp)/10 per deal"
+}

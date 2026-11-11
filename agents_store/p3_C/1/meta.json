@@ -1,0 +1,8 @@
+{
+  "git_sha": "4e4f83f",
+  "date": "2026-11-11T06:16:51",
+  "rules_hash": "7e7cfce263bc",
+  "rules": "house_3p, over=taken, dark x1",
+  "init": "p3_B",
+  "reward": "own deal score"
+}

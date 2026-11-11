@@ -26,11 +26,16 @@ class WrapAgent(Agent):
     name = "wrap"
 
     def __init__(self, seed: int = 0, base: str = "heuristic", mode: str = "shade", delta: float = 0,
-                 bid: int = 0, coefs: str | None = None, comp: float = 0.0, model_dir=None, **kw):
+                 bid: int = 0, coefs: str | None = None, comp: float = 0.0, slack: int = 0, target: str = "any",
+                 thr: float = 0.0, else_bid: int = -1, model_dir=None, **kw):
         from registry.store import make_agent
         self.base = make_agent(base.replace("~", ":"), seed=seed)
         self.mode = mode
         self.comp = comp
+        self.slack = slack
+        self.target = target
+        self.thr = thr
+        self.else_bid = else_bid
         self.delta = delta
         self.fbid = bid
         self.coefs = None
@@ -95,6 +100,13 @@ class WrapAgent(Agent):
     def act(self, o, legal):
         m = self.mode
         if o.phase == PH_BID:
+            if m == "catchup" and o.dark and o.gctx is not None:
+                tot = o.gctx[0]
+                gap = max(v for q, v in enumerate(tot) if q != o.me) - tot[o.me]
+                if gap > self.thr:
+                    return nearest_legal_bid(legal, self.fbid)
+                if self.else_bid >= 0:
+                    return nearest_legal_bid(legal, self.else_bid)
             if m == "shade":
                 return nearest_legal_bid(legal, self.base.act(o, legal) - BID_OFFSET + self.delta)
             if m == "forced_bid":
@@ -109,6 +121,29 @@ class WrapAgent(Agent):
                     prev = [o.bids[q] for q in order[:seat]]
                     est -= self.comp * (sum(prev) - len(prev) * o.n_cards / o.n)
                 return nearest_legal_bid(legal, est)
+            return self.base.act(o, legal)
+        if m == "deny":  # deny an opponent who needs (almost) all remaining tricks, once my own bid is made
+            remaining = o.n_cards - o.tricks_done
+            if o.bids[o.me] - o.won[o.me] <= 0 and len(legal) > 1:
+                tot = o.gctx[0] if o.gctx is not None else [0] * o.n
+                victims = [q for q in range(o.n) if q != o.me and o.bids[q] - o.won[q] > 0
+                           and o.bids[q] - o.won[q] >= remaining - self.slack
+                           and (self.target == "any" or tot[q] >= tot[o.me])]
+                if victims:
+                    from .heuristic import card_key, trick_best_key
+                    from engine.core import A_J_FOLLOW_HIGH, A_J_LEAD_HIGH
+                    if not o.t_players:  # leading: lead my strongest card
+                        plain = [a for a in legal if a < 36]
+                        hi = [a for a in legal if A_J_LEAD_HIGH <= a < A_J_LEAD_HIGH + 4]
+                        if hi:
+                            return hi[0]
+                        return max(plain, key=lambda c: card_key(c, o.trump, c // 9))
+                    best = trick_best_key(o)
+                    win = [a for a in legal if a < 36 and card_key(a, o.trump, o.lead_suit) > best]
+                    if win:
+                        return max(win, key=lambda c: card_key(c, o.trump, o.lead_suit))
+                    if A_J_FOLLOW_HIGH in legal:
+                        return A_J_FOLLOW_HIGH
             return self.base.act(o, legal)
         if m == "spite":  # T13: once the bid is surely missed (under), play to minimise opponents' total score
             remaining = o.n_cards - o.tricks_done
