@@ -267,3 +267,9 @@ def test_house_hook_only_from_4_cards():
             step(s, BID_OFFSET + b)
         bids = [a - BID_OFFSET for a in legal_actions(s)]
         assert ((k - 1) in bids) != restricted
+
+
+def test_house_scoring_over_taken_and_dark_x1():
+    assert OURS.score(2, 5) == 5 and OURS.score(0, 3) == 3 and OURS.score(3, 3) == 30
+    assert OURS.score(4, 2) == -40 and OURS.score(2, 2, dark=True) == 20
+    assert R.score(2, 5) == 3  # classic: +1 per extra trick

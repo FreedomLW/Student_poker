@@ -64,6 +64,7 @@ class Rules:
     over_per_trick: int
     under_per_trick: int
     under_mode: str
+    over_mode: str          # extra: over_per_trick * (tricks - bid); taken: over_per_trick * tricks
     dark_multiplier: int
     hash: str
 
@@ -81,7 +82,7 @@ class Rules:
         if tricks == bid:
             s = self.pass_exact if bid == 0 else self.exact_per_trick * bid
         elif tricks > bid:
-            s = self.over_per_trick * (tricks - bid)
+            s = self.over_per_trick * (tricks if self.over_mode == "taken" else tricks - bid)
         else:
             s = self.under_per_trick * (bid if self.under_mode == "bid" else bid - tricks)
         return s * (self.dark_multiplier if dark else 1)
@@ -149,6 +150,7 @@ def rules_from_dict(raw: dict) -> Rules:
         over_per_trick=int(s.get("over_per_trick", 1)),
         under_per_trick=int(s.get("under_per_trick", -10)),
         under_mode=s.get("under_mode", "bid"),
+        over_mode=s.get("over_mode", "extra"),
         dark_multiplier=int(s.get("dark_multiplier", 2)),
         hash=h,
     )

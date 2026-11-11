@@ -192,3 +192,37 @@ def deal_vs_field(cand: str, field: str, n_cards: int, n_deals: int, dtype="norm
             out[seat].append(res[k][1][p] - base[p])
             k += 1
     return {s: np.array(v, float) for s, v in out.items()}
+
+
+def _game_task_full(args):
+    specs, seed, overrides = args
+    rules = load_rules(overrides=overrides)
+    agents = _get_agents(specs, seed, rules)
+    totals, log = play_game(rules, agents, seed)
+    return seed, totals, log
+
+
+def win_vs_field(cand: str, field: str, n_games: int, overrides=None, seed0=110_000, procs=None):
+    """Candidate in each seat vs (n-1)x field on identical games. Returns per-game arrays:
+    win share of the candidate (ties split; 1/n = no edge) and the candidate's points minus the field's mean."""
+    rules = load_rules(overrides=overrides)
+    n = rules.n_players
+    tasks = []
+    for g in range(n_games):
+        for seat in range(n):
+            specs = [field] * n
+            specs[seat] = cand
+            tasks.append((tuple(specs), seed0 + g, overrides))
+    res = pmap(_game_task, tasks, procs)
+    win, margin = [], []
+    for g in range(n_games):
+        w = m = 0.0
+        for seat in range(n):
+            tot = res[g * n + seat][1]
+            best = max(tot)
+            nw = sum(1 for v in tot if v == best)
+            w += (1.0 / nw) if tot[seat] == best else 0.0
+            m += tot[seat] - (sum(tot) - tot[seat]) / (n - 1)
+        win.append(w / n)
+        margin.append(m / n)
+    return np.array(win), np.array(margin)

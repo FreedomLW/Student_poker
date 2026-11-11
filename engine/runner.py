@@ -25,6 +25,11 @@ def play_deal(s, agents, record=None):
     return scores(s)
 
 
+def game_context(totals, i, deals):
+    """(totals so far, index of this deal, number of deals, tricks in the deals AFTER this one)."""
+    return (tuple(totals), i, len(deals), sum(d[0] for d in deals[i + 1:]))
+
+
 def play_game(rules, agents, seed, first_dealer=None):
     """Full game over rules.schedule. Returns (totals, per-deal list of dicts)."""
     n = rules.n_players
@@ -32,8 +37,10 @@ def play_game(rules, agents, seed, first_dealer=None):
         first_dealer = random.Random(seed ^ 0x5EED).randrange(n)
     totals = [0] * n
     log = []
-    for k, t, dealer, dseed in game_deals(rules, seed, first_dealer):
+    deals = list(game_deals(rules, seed, first_dealer))
+    for i, (k, t, dealer, dseed) in enumerate(deals):
         s = new_deal(rules, k, dealer, dseed, dtype=t)
+        s.gctx = game_context(totals, i, deals)
         for ag in agents:
             if hasattr(ag, "new_deal"):
                 ag.new_deal()

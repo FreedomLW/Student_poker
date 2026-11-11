@@ -64,7 +64,7 @@ class State:
         "rules", "n", "dealer", "n_cards", "dtype", "dark", "hands", "trump", "trump_card",
         "bids", "n_bids", "phase", "cur", "t_players", "t_cards", "t_kinds", "lead_suit",
         "demand", "leader", "won", "played", "tricks_done", "history", "voids", "first_seat",
-        "init_hands", "bid_history",
+        "init_hands", "bid_history", "gctx",
     )
 
     def clone(self) -> "State":
@@ -96,6 +96,7 @@ class State:
         s.first_seat = self.first_seat
         s.init_hands = self.init_hands
         s.bid_history = self.bid_history[:]
+        s.gctx = self.gctx
         return s
 
     # ------------------------------------------------------------------ info
@@ -181,6 +182,7 @@ def new_deal(rules: Rules, n_cards: int, dealer: int, rng: random.Random | int |
     s.history = []
     s.voids = [0] * n  # bit s set => player publicly known void in suit s (bit 4 => void in trump)
     s.bid_history = []
+    s.gctx = None  # game context (totals, deal_idx, n_deals, tricks_left_after) set by the game runner
     return s
 
 

@@ -10,7 +10,7 @@ class Obs:
         "rules", "me", "n", "dealer", "n_cards", "dtype", "dark", "hand", "trump", "trump_card",
         "bids", "bid_history", "phase", "cur", "t_players", "t_cards", "t_kinds", "lead_suit",
         "demand", "leader", "won", "played", "tricks_done", "history", "voids", "first_seat",
-        "hand_sizes",
+        "hand_sizes", "gctx",
     )
 
     def __init__(self, s: State, me: int):
@@ -42,6 +42,7 @@ class Obs:
         self.voids = s.voids[:]
         self.first_seat = s.first_seat
         self.hand_sizes = [h.bit_count() for h in s.hands]
+        self.gctx = getattr(s, "gctx", None)
 
     def seat(self, p: int) -> int:
         """Relative seat of p w.r.t. the first bidder (0 = first bidder/leader, n-1 = dealer)."""
@@ -82,4 +83,5 @@ def state_from_obs(o: Obs, hands: list) -> State:
     s.voids = o.voids[:]
     s.first_seat = o.first_seat
     s.bid_history = o.bid_history[:]
+    s.gctx = o.gctx
     return s

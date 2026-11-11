@@ -39,7 +39,8 @@ play:
 scoring:
   exact_per_trick: 10        # заказ выполнен ровно: 10 × заказ
   pass_exact: 5              # пас (0) выполнен: 5
-  over_per_trick: 1          # перебор: 1 за каждую лишнюю взятку (только за лишние)
+  over_per_trick: 1          # перебор: множитель
+  over_mode: taken           # taken: при переборе очки = число ВСЕХ взятых взяток (заказ 2, взял 5 -> 5); extra: только за лишние
   under_per_trick: -10       # недобор: -10 × ...
   under_mode: bid            # bid: -10×заказ; missing: -10×(заказ-взятки)
-  dark_multiplier: 2         # тёмная: очки ×2
+  dark_multiplier: 1         # тёмная без удвоения (у нас); классика: 2

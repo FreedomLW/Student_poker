@@ -25,7 +25,8 @@ import torch
 from agents.heuristic import heuristic_bid, heuristic_play
 from agents.heuristic2 import smart_bid, smart_play
 from agents.learned import QNet, save_qnet, load_qnet
-from engine import N_ACTIONS, Obs, default_rules, legal_actions, new_deal, scores, step
+from engine import N_ACTIONS, Obs, default_rules, game_deals, legal_actions, new_deal, scores, step
+from engine.runner import game_context
 from env.features import encode, obs_dim
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -58,9 +59,24 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
     sched = R.schedule
     eps = cfg["eps"]
 
+    GAME = cfg.get("game", False)
+
+    def start_deal(sl):
+        k, t, dealer, ds = sl["deals"][sl["di"]]
+        st = new_deal(R, k, dealer, ds, dtype=t)
+        st.gctx = game_context(sl["totals"], sl["di"], sl["deals"])
+        sl["s"] = st
+
     def new_slot():
-        k, t = rng.choice(sched)
-        s = new_deal(R, k, rng.randrange(n), rng.getrandbits(63), dtype=t)
+        if GAME:
+            sl = dict(deals=list(game_deals(R, rng.getrandbits(63), rng.randrange(n))), di=0, totals=[0] * n,
+                      gtraj=[[] for _ in range(n)])
+            start_deal(sl)
+            s = sl["s"]
+        else:
+            k, t = rng.choice(sched)
+            s = new_deal(R, k, rng.randrange(n), rng.getrandbits(63), dtype=t)
+            sl = dict(s=s)
         r = rng.random()
         roles = ["net"] * n
         if r < cfg["p_heur"]:
@@ -69,7 +85,8 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
         elif r < cfg["p_heur"] + cfg["p_past"]:
             for p in rng.sample(range(n), rng.randint(1, 3)):
                 roles[p] = "past"
-        return dict(s=s, roles=roles, traj=[[] for _ in range(n)])
+        sl.update(roles=roles, traj=[[] for _ in range(n)])
+        return sl
 
     slots = [new_slot() for _ in range(B)]
     xs, acts, rets, phases, labs = [], [], [], [], []
@@ -81,6 +98,33 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
         for i, sl in enumerate(slots):
             s = sl["s"]
             while True:
+                if s.phase == 2 and GAME:
+                    sc = scores(s)
+                    for p in range(n):
+                        margin = (sc[p] - (sum(sc) - sc[p]) / (n - 1)) / 10.0
+                        for tr in sl["traj"][p]:
+                            sl["gtraj"][p].append(tr + (margin,))
+                        sl["totals"][p] += sc[p]
+                    sl["traj"] = [[] for _ in range(n)]
+                    sl["di"] += 1
+                    if sl["di"] < len(sl["deals"]):
+                        start_deal(sl)
+                        s = sl["s"]
+                        continue
+                    tot = sl["totals"]
+                    best = max(tot)
+                    nw = sum(1 for v in tot if v == best)
+                    for p in range(n):
+                        win = (1.0 / nw if tot[p] == best else 0.0) - 1.0 / n
+                        for (x, a, ph, lab, margin) in sl["gtraj"][p]:
+                            xs.append(x)
+                            acts.append(a)
+                            rets.append(cfg["win_w"] * win + cfg["margin_w"] * margin)
+                            phases.append(ph)
+                            labs.append(lab if lab is not None else np.zeros(36, np.int8))
+                    slots[i] = sl = new_slot()
+                    s = sl["s"]
+                    continue
                 if s.phase == 2:
                     sc = scores(s)
                     lam = cfg.get("social", 0.0)
@@ -181,7 +225,10 @@ def main(argv=None):
     ap.add_argument("--init-play", default=None)
     ap.add_argument("--ckpt-minutes", type=float, default=10)
     ap.add_argument("--learner-threads", type=int, default=1)
-    ap.add_argument("--features", default="v1", choices=["v1", "hist", "hist_oracle"])
+    ap.add_argument("--game", action="store_true", help="play whole games; reward = win (+ deal margin shaping)")
+    ap.add_argument("--win-w", type=float, default=3.0)
+    ap.add_argument("--margin-w", type=float, default=0.5)
+    ap.add_argument("--features", default="v1", choices=["v1", "hist", "hist_oracle", "v1g"])
     ap.add_argument("--social", type=float, default=0.0, help="reward = own + social * mean(opponents)")
     ap.add_argument("--aux", type=float, default=0.0, help="weight of auxiliary hidden-card-location loss (0 = off)")
     a = ap.parse_args(argv)
@@ -217,7 +264,7 @@ def main(argv=None):
     past_shared = make_shared()
     cfg = dict(hidden=a.hidden, batch_deals=a.batch_deals, eps=a.eps, p_heur=a.p_heur, p_heur2=a.p_heur2,
                p_past=a.p_past, chunk=4096, sync_every=50, aux=a.aux > 0, social=a.social,
-               features=a.features)
+               features=a.features, game=a.game, win_w=a.win_w, margin_w=a.margin_w)
     aux_heads = {}
     if a.aux > 0:
         for ph in phases:

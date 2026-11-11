@@ -24,7 +24,13 @@ def base_dim(n: int, max_cards: int) -> int:
             + 2)                    # joker in my hand, joker already played
 
 
-FEATURE_SETS = ("v1", "hist", "hist_oracle")
+FEATURE_SETS = ("v1", "hist", "hist_oracle", "v1g")
+
+
+def game_dim(n: int) -> int:
+    # totals (n), my lead over each opponent (n-1), my rank one-hot (n), deal progress, tricks left in game,
+    # last-deal flag, my gap to the leader
+    return n + (n - 1) + n + 4
 
 
 def trick_dim(n: int) -> int:
@@ -37,6 +43,8 @@ def obs_dim(n: int, max_cards: int, features: str = "v1") -> int:
         d += (max_cards - 1) * trick_dim(n)  # every completed trick of the deal, in order
     if features == "hist_oracle":
         d += (n - 1) * 36  # CHEATER: the other players' current hands
+    if features == "v1g":
+        d += game_dim(n)
     return d
 
 
@@ -49,6 +57,25 @@ def encode(o, out: np.ndarray | None = None, features: str = "v1", hands=None) -
         x[:] = 0
     _encode_base(o, x)
     if features == "v1":
+        return x
+    if features == "v1g":
+        i = base_dim(n, o.rules.max_cards)
+        g = o.gctx
+        if g is not None:
+            tot, di, nd, left = g
+            me = o.me
+            rel_tot = [tot[(me + r) % n] for r in range(n)]
+            for r in range(n):
+                x[i + r] = rel_tot[r] / 100.0
+            for r in range(1, n):
+                x[i + n + r - 1] = (rel_tot[0] - rel_tot[r]) / 100.0
+            rank = sum(1 for r in range(1, n) if rel_tot[r] > rel_tot[0])
+            x[i + 2 * n - 1 + rank] = 1
+            b = i + 3 * n - 1
+            x[b] = di / max(1, nd - 1)
+            x[b + 1] = left / 100.0
+            x[b + 2] = float(di == nd - 1)
+            x[b + 3] = (rel_tot[0] - max(rel_tot[1:])) / 100.0
         return x
     i = base_dim(n, o.rules.max_cards)
     jm = o.rules.joker_mask
