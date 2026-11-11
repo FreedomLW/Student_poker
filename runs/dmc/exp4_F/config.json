@@ -1,6 +1,6 @@
 {
  "name": "exp4_F",
- "minutes": 70.0,
+ "minutes": 45.0,
  "actors": 2,
  "batch_deals": 64,
  "eps": 0.03,
@@ -20,7 +20,7 @@
  "init": null,
  "init_bid": "agents_store/house_F/1/bidnet.pt",
  "init_play": "agents_store/house_F/1/playnet.pt",
- "ckpt_minutes": 10,
+ "ckpt_minutes": 5.0,
  "learner_threads": 1,
  "exploit_bid": "agents_store/house_F/1/bidnet.pt",
  "exploit_play": "agents_store/house_F/1/playnet.pt",
