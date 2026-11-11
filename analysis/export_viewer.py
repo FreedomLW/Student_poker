@@ -109,8 +109,10 @@ def main(argv=None):
     ap.add_argument("--games", type=int, default=12)
     ap.add_argument("--seed0", type=int, default=300_000)
     ap.add_argument("--out", default=os.path.join(ROOT, "viewer", "games.html"))
+    ap.add_argument("--name", default=None, help="human-readable model name for the page header")
     a = ap.parse_args(argv)
     data = export(a.spec, a.games, a.seed0)
+    data["model_name"] = a.name or a.spec
     with open(os.path.join(ROOT, "viewer", "template.html")) as f:
         html = f.read()
     html = html.replace("/*__DATA__*/null", json.dumps(data, ensure_ascii=False, separators=(",", ":")))
