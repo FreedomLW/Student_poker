@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Советник — одесский покер</title>
+<style>
+  :root { --bg:#f6f5f1; --panel:#fff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e4e2dc; --accent:#2f6fdf; --soft:#e6eefc;
+          --good:#1f8a4c; --bad:#c0392b; --red:#c62828; --warn:#b26a00; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; font:15px/1.4 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:8px; position:sticky; top:0; z-index:5; }
+  header h1 { font-size:17px; margin:0; }
+  main { max-width:720px; margin:0 auto; padding:12px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px; }
+  .lab { color:var(--muted); font-size:13px; margin-bottom:6px; }
+  .row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  button { font:inherit; border:1px solid var(--line); background:#fff; border-radius:9px; padding:8px 11px; cursor:pointer; min-width:40px; }
+  button.sel { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.primary { background:#2c2c30; color:#fff; border-color:#2c2c30; font-weight:600; }
+  button:disabled { opacity:.35; }
+  .seg button { min-width:44px; }
+  .suitrow { display:grid; grid-template-columns:22px repeat(9, minmax(0, 1fr)); align-items:center; gap:4px; margin-bottom:6px; }
+  .suitlab { font-size:19px; text-align:center; }
+  .card { min-width:0; width:100%; height:48px; padding:0; font-weight:700; font-size:15px; border-radius:7px; }
+  .card.red { color:var(--red); } .card.trump { background:#fff4e5; border-color:#f0b46a; }
+  .card.joker { background:#6b2fc0; color:#fff; border-color:#4e1f93; }
+  .card.sel { outline:3px solid var(--accent); outline-offset:0; background:#cfe0ff; color:var(--ink); }
+  .card.red.sel, .card.trump.sel { color:var(--red); background:#cfe0ff; }
+  .card.joker.sel { background:#6b2fc0; color:#fff; outline:4px solid #f0b400; }
+  .players { display:grid; grid-template-columns:repeat(var(--np),1fr); gap:6px; }
+  .pl { border:1px solid var(--line); border-radius:10px; padding:6px 8px; font-size:13px; }
+  .pl.me { border-color:var(--accent); box-shadow:0 0 0 2px var(--soft); }
+  .pl.turn { background:#fffbea; border-color:#e9c46a; }
+  .pl b { font-size:16px; }
+  .trick { display:flex; gap:10px; flex-wrap:wrap; min-height:56px; align-items:center; background:#eef3ee; border-radius:10px; padding:8px; }
+  .tc { text-align:center; font-size:12px; color:var(--muted); }
+  .chip { display:inline-flex; align-items:center; justify-content:center; min-width:38px; height:44px; padding:0 4px; border:1px solid #cfcdc6; border-radius:7px; background:#fff; font-weight:700; font-size:15px; }
+  .chip.red { color:var(--red); } .chip.trump { background:#fff4e5; border-color:#f0b46a; } .chip.joker { background:#6b2fc0; color:#fff; }
+  .opts { width:100%; border-collapse:collapse; }
+  .opts td { padding:7px 6px; border-bottom:1px solid #f0efea; font-variant-numeric:tabular-nums; }
+  .opts tr { cursor:pointer; }
+  .opts tr.best td { background:var(--soft); font-weight:700; }
+  .opts .ev { text-align:right; white-space:nowrap; }
+  .pos { color:var(--good); } .neg { color:var(--bad); }
+  .note { color:var(--muted); font-size:12px; }
+  .status { font-weight:600; font-size:16px; margin-bottom:8px; }
+  .hand { display:flex; flex-wrap:wrap; gap:4px; }
+  .log { font-size:13px; color:var(--muted); max-height:160px; overflow:auto; }
+  .warn { color:var(--warn); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Советник: одесский покер</h1>
+  <div class="row seg" id="npick"></div>
+</header>
+<main id="app"></main>
+<script>/*__CORE__*/</script>
+<script>
+const MODELS_RAW = /*__MODELS__*/null;
+const A = window.Advisor;
+const RANKS = ["6","7","8","9","10","В","Д","К","Т"], SUITS = ["♠","♣","♦","♥"];
+const ROW_ORDER = [2, 0, 3, 1];                 // ♦ (trump) ♠ ♥ ♣
+const MODELS = {};
+function model(n) { if (!MODELS[n]) MODELS[n] = {bid: A.loadNet(MODELS_RAW[n].bid), play: A.loadNet(MODELS_RAW[n].play)}; return MODELS[n]; }
+const LS = "odessa_advisor_v1";
+let ST = JSON.parse(localStorage.getItem(LS) || "null") || {n: 3, stage: "setup", k: null, order: null, dark: false, hand: [], log: []};
+function save() { localStorage.setItem(LS, JSON.stringify(ST)); }
+
+function cardName(c) { return c === A.JOKER ? "Дж" : RANKS[A.rankOf(c)] + SUITS[A.suitOf(c)]; }
+function cardCls(c) { const s = A.suitOf(c); return c === A.JOKER ? "joker" : (s === 2 ? "red trump" : (s === 3 ? "red" : "")); }
+function actName(a) {
+  if (a >= A.BID_OFFSET) return "заказ " + (a - A.BID_OFFSET);
+  if (a < 36) return cardName(a);
+  if (a === A.A_J_FOLLOW_HIGH) return "Дж — старший (бьёт всё)";
+  if (a === A.A_J_FOLLOW_LOW) return "Дж — как обычная 7♠";
+  if (a < A.A_J_LEAD_LOW) return "Дж — заход «старшую " + SUITS[a - A.A_J_LEAD_HIGH] + "»";
+  return "Дж — заход младшей " + SUITS[a - A.A_J_LEAD_LOW];
+}
+function setupObj() {
+  const n = ST.n;
+  return {n, k: ST.k, dealer: n - 1, me: ST.order, myHand: ST.hand, dark: ST.dark, hookMin: 4};
+}
+function pname(p) { return p === ST.order ? "Вы" : "Игрок " + (p + 1); }
+function el(html) { const d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstChild; }
+
+function renderHeader() {
+  const box = document.getElementById("npick"); box.innerHTML = "";
+  [3, 4].forEach(n => {
+    const b = document.createElement("button"); b.textContent = n + " игрока"; if (ST.n === n) b.classList.add("sel");
+    b.onclick = () => { ST = {n, stage: "setup", k: null, order: null, dark: false, hand: [], log: []}; save(); render(); };
+    box.appendChild(b);
+  });
+}
+
+function renderSetup(app) {
+  const n = ST.n, mx = Math.floor(36 / n);
+  const p = el('<div class="panel"></div>');
+  p.innerHTML = '<div class="lab">Сколько карт в раздаче</div><div class="row seg" id="kk"></div>' +
+    '<div class="lab" style="margin-top:10px">Когда вы заказываете (1 — первым, ' + n + ' — сдающий, последним)</div><div class="row seg" id="oo"></div>' +
+    '<div class="row" style="margin-top:10px"><label><input type="checkbox" id="dark"> тёмная (заказ вслепую)</label></div>' +
+    '<div class="row" style="margin-top:12px"><button class="primary" id="go">Дальше: ввести карты</button></div>';
+  app.appendChild(p);
+  for (let k = 1; k <= mx; k++) {
+    const b = document.createElement("button"); b.textContent = k; if (ST.k === k) b.classList.add("sel");
+    b.onclick = () => { ST.k = k; save(); render(); }; p.querySelector("#kk").appendChild(b);
+  }
+  for (let o = 0; o < n; o++) {
+    const b = document.createElement("button"); b.textContent = (o + 1) + (o === n - 1 ? " (сдаю)" : ""); if (ST.order === o) b.classList.add("sel");
+    b.onclick = () => { ST.order = o; save(); render(); }; p.querySelector("#oo").appendChild(b);
+  }
+  const dk = p.querySelector("#dark"); dk.checked = ST.dark; dk.onchange = () => { ST.dark = dk.checked; save(); };
+  const go = p.querySelector("#go"); go.disabled = !(ST.k && ST.order !== null);
+  go.onclick = () => { ST.stage = "hand"; ST.hand = []; save(); render(); };
+}
+
+function renderHand(app) {
+  const p = el('<div class="panel"></div>');
+  p.innerHTML = `<div class="lab">Отметьте свои карты: выбрано <b>${ST.hand.length}</b> из <b>${ST.k}</b>. Козырь — ♦, джокер — 7♠ («Дж»).</div><div id="grid"></div>
+    <div class="row" style="margin-top:10px"><button id="back">← Назад</button><button class="primary" id="ok">Карты введены</button></div>`;
+  app.appendChild(p);
+  const g = p.querySelector("#grid");
+  ROW_ORDER.forEach(su => {
+    const r = el(`<div class="suitrow"><span class="suitlab" style="color:${su >= 2 ? "var(--red)" : "inherit"}">${SUITS[su]}</span></div>`);
+    for (let rk = 0; rk < 9; rk++) {
+      const c = su * 9 + rk, b = document.createElement("button");
+      b.className = "card " + cardCls(c) + (ST.hand.includes(c) ? " sel" : "");
+      b.textContent = c === A.JOKER ? "Дж" : RANKS[rk];
+      b.onclick = () => {
+        const i = ST.hand.indexOf(c);
+        if (i >= 0) ST.hand.splice(i, 1); else if (ST.hand.length < ST.k) ST.hand.push(c);
+        save(); render();
+      };
+      r.appendChild(b);
+    }
+    g.appendChild(r);
+  });
+  p.querySelector("#back").onclick = () => { ST.stage = "setup"; save(); render(); };
+  const ok = p.querySelector("#ok"); ok.disabled = ST.hand.length !== ST.k;
+  ok.onclick = () => { ST.stage = "play"; ST.log = []; save(); render(); };
+}
+
+function optionsTable(s, legal, onPick) {
+  const q = A.qValues(model(ST.n), s);
+  const rows = legal.map(a => [a, q[a] * 10]).sort((x, y) => y[1] - x[1]);
+  const t = el('<table class="opts"></table>');
+  rows.forEach(([a, v], i) => {
+    const tr = document.createElement("tr"); if (i === 0) tr.className = "best";
+    tr.innerHTML = `<td>${i === 0 ? "★ " : ""}${actName(a)}</td><td class="ev ${v > 0 ? "pos" : (v < 0 ? "neg" : "")}">${v > 0 ? "+" : ""}${v.toFixed(1)}</td>`;
+    tr.onclick = () => onPick(a);
+    t.appendChild(tr);
+  });
+  return t;
+}
+
+function renderPlay(app) {
+  const s = A.replay(setupObj(), ST.log);
+  const n = ST.n, me = ST.order;
+  // players
+  const pp = el('<div class="panel"><div class="players"></div></div>');
+  pp.firstChild.style.setProperty("--np", n);
+  for (let p = 0; p < n; p++) {
+    const d = el(`<div class="pl ${p === me ? "me" : ""} ${p === s.cur && s.phase < 2 ? "turn" : ""}"></div>`);
+    const need = s.bids[p] >= 0 ? s.bids[p] - s.won[p] : null;
+    d.innerHTML = `<div>${pname(p)}${p === n - 1 ? " · сдаёт" : ""}</div><div>заказ <b>${s.bids[p] >= 0 ? s.bids[p] : "—"}</b> · взял <b>${s.won[p]}</b></div>` +
+      (need !== null && s.phase === 1 ? `<div class="note">${need > 0 ? "нужно ещё " + need : (need === 0 ? "✓ набрал" : "перебор +" + (-need))}</div>` : "");
+    pp.firstChild.appendChild(d);
+  }
+  app.appendChild(pp);
+  // my hand + trick
+  const hp = el('<div class="panel"></div>');
+  hp.innerHTML = `<div class="lab">Ваши карты · ${ST.k} карт · козырь ♦${ST.dark ? " · тёмная" : ""}</div><div class="hand"></div>
+     <div class="lab" style="margin-top:10px">${s.phase === 0 ? "Заказы" : (s.phase === 2 ? "Раздача сыграна" : "Взятка " + (s.tricks + 1) + " из " + ST.k)}</div><div class="trick"></div>`;
+  [...s.myHand].sort((a, b) => (ROW_ORDER.indexOf(A.suitOf(a)) - ROW_ORDER.indexOf(A.suitOf(b))) || (b - a)).forEach(c => {
+    hp.querySelector(".hand").appendChild(el(`<span class="chip ${cardCls(c)}">${cardName(c)}</span>`));
+  });
+  const tr = hp.querySelector(".trick");
+  const shown = s.tP.length ? {P: s.tP, C: s.tC, K: s.tK, w: null} : (s.history.length ? {P: s.history[s.history.length - 1].players, C: s.history[s.history.length - 1].cards, K: s.history[s.history.length - 1].kinds, w: s.history[s.history.length - 1].winner} : null);
+  if (s.phase === 0) tr.innerHTML = '<span class="note">' + s.bids.map((b, p) => pname(p) + ": " + (b >= 0 ? b : "…")).join(" · ") + "</span>";
+  else if (!shown) tr.innerHTML = '<span class="note">ждём первый ход</span>';
+  else shown.P.forEach((p, i) => tr.appendChild(el(`<div class="tc"><span class="chip ${cardCls(shown.C[i])}">${cardName(shown.C[i])}</span><br>${pname(p)}${shown.w === p ? " — берёт" : ""}</div>`)));
+  if (!s.tP.length && shown && s.phase === 1) tr.insertAdjacentHTML("afterbegin", '<span class="note" style="width:100%">предыдущая взятка</span>');
+  app.appendChild(hp);
+  // action panel
+  const ap = el('<div class="panel"></div>');
+  const push = a => { ST.log.push(a); save(); render(); };
+  if (s.phase === 2) {
+    ap.innerHTML = '<div class="status">Раздача сыграна</div>';
+    const sc = []; for (let p = 0; p < n; p++) { const b = s.bids[p], t = s.won[p]; sc.push(pname(p) + ": заказ " + b + ", взял " + t + " → " + (t === b ? (b === 0 ? 5 : 10 * b) : (t > b ? t : -10 * b))); }
+    ap.insertAdjacentHTML("beforeend", '<div>' + sc.join("<br>") + "</div>");
+  } else if (s.cur === me) {
+    ap.innerHTML = `<div class="status">Ваш ${s.phase === 0 ? "заказ" : "ход"} — рекомендация модели</div><div class="note">ожидаемые очки за раздачу при каждом варианте; нажмите вариант, который сыграли</div>`;
+    if (s.phase === 0 && ST.dark) ap.insertAdjacentHTML("beforeend", '<div class="warn">Тёмная: модель советует, не глядя на ваши карты.</div>');
+    ap.appendChild(optionsTable(s, A.legalMine(s), push));
+  } else {
+    ap.innerHTML = `<div class="status">${s.phase === 0 ? "Заказ" : "Ход"}: ${pname(s.cur)} — что он сделал?</div>`;
+    const opts = A.possibleOther(s);
+    if (s.phase === 0) {
+      const r = el('<div class="row seg"></div>');
+      opts.forEach(a => { const b = document.createElement("button"); b.textContent = a - A.BID_OFFSET; b.onclick = () => push(a); r.appendChild(b); });
+      ap.appendChild(r);
+    } else {
+      const g = el("<div></div>");
+      ROW_ORDER.forEach(su => {
+        const r = el(`<div class="suitrow"><span class="suitlab" style="color:${su >= 2 ? "var(--red)" : "inherit"}">${SUITS[su]}</span></div>`);
+        opts.filter(a => a < 36 && A.suitOf(a) === su).forEach(a => {
+          const b = document.createElement("button"); b.className = "card " + cardCls(a); b.textContent = RANKS[A.rankOf(a)]; b.onclick = () => push(a); r.appendChild(b);
+        });
+        g.appendChild(r);
+      });
+      const jr = el('<div class="row" style="margin-top:6px"></div>');
+      opts.filter(a => a >= 36).forEach(a => { const b = document.createElement("button"); b.className = "card joker"; b.style.minWidth = "auto"; b.textContent = actName(a); b.onclick = () => push(a); jr.appendChild(b); });
+      g.appendChild(jr);
+      ap.appendChild(g);
+    }
+  }
+  const ctl = el('<div class="row" style="margin-top:12px"><button id="undo">↶ Отменить ход</button><button id="new">Новая раздача</button><button id="edit">Изменить карты</button></div>');
+  ctl.querySelector("#undo").onclick = () => { ST.log.pop(); save(); render(); };
+  ctl.querySelector("#undo").disabled = !ST.log.length;
+  ctl.querySelector("#new").onclick = () => { ST.stage = "setup"; ST.hand = []; ST.log = []; save(); render(); };
+  ctl.querySelector("#edit").onclick = () => { ST.stage = "hand"; ST.log = []; save(); render(); };
+  ap.appendChild(ctl);
+  app.appendChild(ap);
+  // log
+  if (ST.log.length) {
+    const lg = el('<div class="panel"><div class="lab">Ход раздачи</div><div class="log"></div></div>');
+    const s2 = A.newState(setupObj()); const lines = [];
+    ST.log.forEach(a => { const p = s2.cur; lines.push(pname(p) + ": " + actName(a)); A.apply(s2, a); });
+    lg.querySelector(".log").innerHTML = lines.join("<br>");
+    app.appendChild(lg);
+  }
+}
+
+function render() {
+  renderHeader();
+  const app = document.getElementById("app"); app.innerHTML = "";
+  if (ST.stage === "setup") renderSetup(app);
+  else if (ST.stage === "hand") renderHand(app);
+  else renderPlay(app);
+  const info = el(`<p class="note">Модель: ${MODELS_RAW[ST.n].name}. Правила: козырь ♦, джокер 7♠ (заход — только «старшую масти X», в ответ — старший или как 7♠), перебор = все взятые, тёмная без удвоения, правило сдающего с 4 карт. Работает офлайн; партия сохраняется в браузере.</p>`);
+  app.appendChild(info);
+}
+render();
+</script>
+</body>
+</html>
