@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Одесский покер — как играет модель</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e4e2dc;
+    --accent: #2f6fdf; --accent-soft: #e6eefc; --good: #1f8a4c; --bad: #c0392b; --warn: #b7791f;
+    --red: #c62828; --black: #222; --felt: #eef3ee;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  .layout { display: grid; grid-template-columns: 260px 1fr; gap: 0; min-height: calc(100vh - 56px); }
+  aside { border-right: 1px solid var(--line); background: var(--panel); overflow: auto; max-height: calc(100vh - 56px); }
+  aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 14px 6px; }
+  .game { padding: 9px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .game:hover { background: #fafaf7; }
+  .game.sel { background: var(--accent-soft); }
+  .game .gid { font-weight: 600; }
+  .game .tots { display: flex; gap: 8px; margin-top: 3px; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .game .tots span.win { font-weight: 700; color: var(--good); }
+  main { padding: 16px 20px 40px; overflow: auto; max-height: calc(100vh - 56px); }
+  .deals { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .deal-btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 8px; cursor: pointer; font-size: 12px; min-width: 52px; text-align: center; }
+  .deal-btn .k { font-weight: 700; font-size: 14px; display: block; }
+  .deal-btn.dark { background: #2c2c30; color: #eee; border-color: #2c2c30; }
+  .deal-btn.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .card-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+  .info { color: var(--muted); }
+  .info b { color: var(--ink); }
+  .controls button { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 11px; cursor: pointer; font-size: 14px; }
+  .controls button:hover { background: #f1f0eb; }
+  .controls input[type=range] { width: 260px; }
+  select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); font-size: 14px; }
+  .table { display: grid; grid-template-columns: repeat(var(--np), 1fr); gap: 12px; }
+  .seat { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--panel); position: relative; }
+  .seat.focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .seat.active { background: #fffbea; }
+  .seat .name { font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; }
+  .badges span { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; padding: 0 6px; margin-left: 4px; font-weight: 400; }
+  .stats { display: flex; gap: 14px; margin: 6px 0; font-variant-numeric: tabular-nums; }
+  .stats .lab { color: var(--muted); font-size: 12px; display: block; }
+  .stats .val { font-weight: 700; font-size: 16px; }
+  .hand { display: flex; flex-wrap: wrap; gap: 4px; min-height: 40px; }
+  .c { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 44px; padding: 0 4px; border-radius: 6px; border: 1px solid #cfcdc6; background: #fff; font-weight: 700; font-size: 15px; box-shadow: 0 1px 0 rgba(0,0,0,.05); }
+  .c.red { color: var(--red); }
+  .c.blk { color: var(--black); }
+  .c.trump { background: #fff4e5; border-color: #f0b46a; }
+  .c.joker { background: #f3e8ff; border-color: #b18ae6; color: #6b2fc0; }
+  .c.hidden { background: repeating-linear-gradient(45deg, #dfe6f3, #dfe6f3 4px, #eef2f9 4px, #eef2f9 8px); color: transparent; border-color: #c9d3e6; }
+  .c.small { min-width: 28px; height: 34px; font-size: 13px; }
+  .c.played-now { outline: 3px solid var(--accent); }
+  .trick { background: var(--felt); border-radius: 12px; padding: 12px; min-height: 92px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+  .trick .slot { text-align: center; }
+  .trick .slot .who { font-size: 12px; color: var(--muted); }
+  .trick .slot.winner .who { color: var(--good); font-weight: 700; }
+  .trick .slot .tag { font-size: 11px; color: #6b2fc0; }
+  .decision h3 { margin: 0 0 6px; font-size: 15px; }
+  .opts { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .opts td { padding: 3px 6px; border-bottom: 1px solid #f0efea; font-variant-numeric: tabular-nums; vertical-align: middle; }
+  .opts tr.chosen td { background: var(--accent-soft); font-weight: 700; }
+  .bar { height: 10px; border-radius: 5px; background: #b9cdf3; }
+  .bar.neg { background: #f1b9b3; }
+  .barcell { width: 50%; }
+  .note { color: var(--muted); font-size: 12px; }
+  .log { max-height: 340px; overflow: auto; font-size: 13px; }
+  .log div { padding: 3px 6px; border-radius: 6px; cursor: pointer; }
+  .log div:hover { background: #f4f3ee; }
+  .log div.cur { background: var(--accent-soft); }
+  .log .tw { color: var(--good); font-weight: 600; }
+  .grid2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } aside { max-height: 220px; } .grid2 { grid-template-columns: 1fr; } }
+  .score-pos { color: var(--good); } .score-neg { color: var(--bad); }
+  .legend { font-size: 12px; color: var(--muted); }
+  .played, .voids { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-top: 7px; font-size: 12px; }
+  .played .lab, .voids .lab { color: var(--muted); margin-right: 4px; }
+  .suitchip { border: 1px solid var(--line); border-radius: 10px; padding: 1px 8px; font-weight: 700; background: #faf9f6; }
+  .suitchip.red { color: var(--red); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Как играет модель</h1>
+  <span class="sub" id="sub"></span>
+</header>
+<div class="layout">
+  <aside>
+    <h2>Партии</h2>
+    <div id="games"></div>
+  </aside>
+  <main>
+    <div class="card-panel">
+      <div class="row" style="justify-content: space-between">
+        <div class="info" id="gameinfo"></div>
+        <div class="row">
+          <label>Смотреть за: <select id="focus"></select></label>
+          <label><input type="checkbox" id="showall" checked> показывать карты соперников</label>
+        </div>
+      </div>
+      <div class="deals" id="deals" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card-panel">
+      <div class="row" style="justify-content: space-between">
+        <div class="info" id="dealinfo"></div>
+        <div class="row controls">
+          <button id="first" title="В начало (Home)">⏮</button>
+          <button id="prev" title="Назад (←)">◀</button>
+          <input type="range" id="slider" min="0" value="0">
+          <button id="next" title="Вперёд (→)">▶</button>
+          <button id="last" title="В конец (End)">⏭</button>
+          <button id="nexttrick" title="К следующей взятке">взятка ⏭</button>
+          <span class="info" id="stepinfo"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="table" id="table"></div>
+
+    <div class="grid2" style="margin-top:14px">
+      <div>
+        <div class="card-panel">
+          <div class="info" style="margin-bottom:6px">Взятка на столе</div>
+          <div class="trick" id="trick"></div>
+        </div>
+        <div class="card-panel decision" id="decision"></div>
+      </div>
+      <div class="card-panel">
+        <div class="info" style="margin-bottom:6px">Ход раздачи (клик — перейти)</div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+    <p class="legend">Числа у вариантов — оценка модели: сколько очков за эту раздачу она ожидает получить, выбрав этот вариант
+      (при дальнейшей игре всех по её же политике). Выбранный вариант выделен. «Знает, что нет» — публичные пустоты: игрок не пошёл
+      в масть хода (значит её нет), а если при этом не побил козырем — нет и бубен; ход джокером ничего не раскрывает. Козырь — бубны (оранжевая рамка), джокер — 7♠ (фиолетовый).</p>
+  </main>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const RU_RANK = {"6":"6","7":"7","8":"8","9":"9","10":"10","J":"В","Q":"Д","K":"К","A":"Т"};
+const SUIT_SYM = {S:"♠", C:"♣", D:"♦", H:"♥"};
+const SUIT_ORDER = {D:0, S:1, C:2, H:3};
+const RANK_ORDER = ["6","7","8","9","10","J","Q","K","A"];
+const JOKER = "7S";
+const N = DATA.n_players;
+const NAMES = Array.from({length: N}, (_, i) => "Игрок " + (i + 1));
+let G = 0, D = 0, S = 0;
+
+function parse(code) { const s = code.slice(-1), r = code.slice(0, -1); return {r, s}; }
+function cardEl(code, opts = {}) {
+  const el = document.createElement("span");
+  el.className = "c" + (opts.small ? " small" : "");
+  if (opts.hidden) { el.classList.add("hidden"); el.textContent = "?"; return el; }
+  if (code === JOKER) { el.classList.add("joker"); el.textContent = "🃏"; el.title = "Джокер (7♠)"; return el; }
+  const {r, s} = parse(code);
+  el.classList.add(s === "D" || s === "H" ? "red" : "blk");
+  if (s === "D") el.classList.add("trump");
+  el.textContent = RU_RANK[r] + SUIT_SYM[s];
+  return el;
+}
+function sortHand(h) {
+  return h.slice().sort((a, b) => {
+    if (a === JOKER) return -1; if (b === JOKER) return 1;
+    const A = parse(a), B = parse(b);
+    return (SUIT_ORDER[A.s] - SUIT_ORDER[B.s]) || (RANK_ORDER.indexOf(B.r) - RANK_ORDER.indexOf(A.r));
+  });
+}
+function actText(a) {
+  if (a.startsWith("JK:high")) return "🃏 джокер — старший";
+  if (a.startsWith("JK:as7S")) return "🃏 джокер — как 7♠";
+  if (a.startsWith("JK:leadlow:")) return "🃏 заход: младшая " + SUIT_SYM[a.slice(-1)];
+  if (a.startsWith("JK:lead:")) return "🃏 заход: «старшую " + SUIT_SYM[a.slice(-1)] + "»";
+  const {r, s} = parse(a); return RU_RANK[r] + SUIT_SYM[s];
+}
+function actCard(a) { return a.startsWith("JK") ? JOKER : a; }
+function fmt(x) { return (x > 0 ? "+" : "") + x.toFixed(1); }
+function cls(x) { return x > 0 ? "score-pos" : (x < 0 ? "score-neg" : ""); }
+
+function buildGames() {
+  const box = document.getElementById("games"); box.innerHTML = "";
+  DATA.games.forEach((g, gi) => {
+    const d = document.createElement("div"); d.className = "game" + (gi === G ? " sel" : "");
+    const best = Math.max(...g.totals);
+    d.innerHTML = `<div class="gid">Партия ${g.id}</div><div class="tots">` +
+      g.totals.map((t, i) => `<span class="${t === best ? "win" : ""}">${NAMES[i].replace("Игрок ", "И")}: ${t}</span>`).join("") + "</div>";
+    d.onclick = () => { G = gi; D = 0; S = 0; render(true); };
+    box.appendChild(d);
+  });
+}
+
+function buildDeals() {
+  const g = DATA.games[G], box = document.getElementById("deals"); box.innerHTML = "";
+  g.deals.forEach((dl, di) => {
+    const b = document.createElement("button");
+    b.className = "deal-btn" + (dl.dtype === "dark" ? " dark" : "") + (di === D ? " sel" : "");
+    const f = +document.getElementById("focus").value;
+    const sc = dl.scores[f];
+    b.innerHTML = `<span class="k">${dl.n_cards}</span>${dl.dtype === "dark" ? "тёмная" : "№" + (di + 1)}<br><span class="${cls(sc)}">${sc > 0 ? "+" : ""}${sc}</span>`;
+    b.title = `Раздача ${di + 1}: ${dl.n_cards} карт; очки «${NAMES[f]}»: ${sc}`;
+    b.onclick = () => { D = di; S = 0; render(); };
+    box.appendChild(b);
+  });
+}
+
+function stateAt(dl, s) {
+  const hands = dl.hands.map(h => h.slice());
+  const bids = Array(N).fill(null), won = Array(N).fill(0);
+  const played = Array.from({length: N}, () => []);
+  const voids = Array.from({length: N}, () => new Set());   // public knowledge: suits a player is known NOT to have
+  let trick = [], lastTrick = null, leadSuit = null;
+  for (let i = 0; i < s; i++) {
+    const e = dl.events[i];
+    if (e.type === "bid") { bids[e.p] = +e.a; continue; }
+    if (trick.length === 0 && lastTrick) lastTrick = null;
+    const card = actCard(e.a);
+    const idx = hands[e.p].indexOf(card); if (idx >= 0) hands[e.p].splice(idx, 1);
+    played[e.p].push(e.a);
+    if (trick.length === 0) {
+      leadSuit = e.a.startsWith("JK:lead") ? e.a.slice(-1) : parse(e.a).s;   // joker lead: the called suit
+    } else if (!e.a.startsWith("JK")) {             // a joker may be played at any time -> reveals nothing
+      const su = parse(e.a).s;
+      if (su !== leadSuit) {                          // did not follow suit -> void in the lead suit
+        voids[e.p].add(leadSuit);
+        if (su !== "D") voids[e.p].add("D");          // and did not trump -> no trumps (diamonds) either
+      }
+    }
+    trick.push({p: e.p, a: e.a});
+    if (e.trick_winner !== undefined) { won[e.trick_winner]++; lastTrick = {cards: trick, winner: e.trick_winner}; trick = []; }
+  }
+  if (s > 0 && dl.events[s - 1].v) {   // authoritative public voids from the engine (same as the model's features)
+    dl.events[s - 1].v.forEach((lst, q) => { voids[q] = new Set(lst); });
+  }
+  return {hands, bids, won, trick, lastTrick, played, voids};
+}
+
+function render(rebuild) {
+  const g = DATA.games[G], dl = g.deals[D];
+  if (rebuild) buildGames();
+  document.querySelectorAll(".game").forEach((el, i) => el.classList.toggle("sel", i === G));
+  const focus = +document.getElementById("focus").value;
+  const showAll = document.getElementById("showall").checked;
+  buildDeals();
+  const best = Math.max(...g.totals);
+  document.getElementById("gameinfo").innerHTML = `Партия <b>${g.id}</b> · итог: ` +
+    g.totals.map((t, i) => `${NAMES[i]} <b class="${t === best ? "score-pos" : ""}">${t}</b>`).join(" · ");
+  const ev = dl.events, nE = ev.length;
+  S = Math.max(0, Math.min(S, nE));
+  const sl = document.getElementById("slider"); sl.max = nE; sl.value = S;
+  document.getElementById("stepinfo").textContent = `шаг ${S} / ${nE}`;
+  document.getElementById("dealinfo").innerHTML =
+    `Раздача <b>${D + 1}</b> из ${g.deals.length} · <b>${dl.n_cards}</b> карт · ${dl.dtype === "dark" ? "<b>тёмная</b> (заказ вслепую) · " : ""}` +
+    `козырь <b style="color:var(--red)">♦</b> · сдаёт <b>${NAMES[dl.dealer]}</b>, первым заказывает и ходит <b>${NAMES[dl.first]}</b> · ` +
+    `счёт до раздачи: ` + dl.totals_before.map((t, i) => `${NAMES[i].replace("Игрок ", "И")} ${t}`).join(", ");
+
+  const st = stateAt(dl, S);
+  const cur = S < nE ? ev[S].p : null;
+  const tbl = document.getElementById("table"); tbl.style.setProperty("--np", N); tbl.innerHTML = "";
+  for (let p = 0; p < N; p++) {
+    const div = document.createElement("div");
+    div.className = "seat" + (p === focus ? " focus" : "") + (p === cur ? " active" : "");
+    const badges = [];
+    if (p === dl.dealer) badges.push("сдаёт");
+    if (p === dl.first) badges.push("ходит первым");
+    if (p === cur) badges.push("ход");
+    const done = S === nE;
+    const need = st.bids[p] === null ? "" : st.bids[p] - st.won[p];
+    div.innerHTML = `<div class="name"><span>${NAMES[p]}${p === focus ? " ★" : ""}</span><span class="badges">${badges.map(b => `<span>${b}</span>`).join("")}</span></div>
+      <div class="stats">
+        <div><span class="lab">заказ</span><span class="val">${st.bids[p] === null ? "—" : st.bids[p]}</span></div>
+        <div><span class="lab">взял</span><span class="val">${st.won[p]}</span></div>
+        <div><span class="lab">${done ? "очки" : "нужно ещё"}</span><span class="val ${done ? cls(dl.scores[p]) : ""}">${done ? (dl.scores[p] > 0 ? "+" : "") + dl.scores[p] : (need === "" ? "—" : need)}</span></div>
+        <div><span class="lab">всего</span><span class="val">${done ? dl.totals_after[p] : dl.totals_before[p]}</span></div>
+      </div>`;
+    const hand = document.createElement("div"); hand.className = "hand";
+    const hidden = !(showAll || p === focus);
+    sortHand(st.hands[p]).forEach(c => hand.appendChild(cardEl(c, {hidden})));
+    if (!st.hands[p].length) hand.innerHTML = '<span class="note">карт нет</span>';
+    div.appendChild(hand);
+    // cards already played by this player in this deal
+    const pl = document.createElement("div"); pl.className = "played";
+    pl.innerHTML = '<span class="lab">вышли:</span>';
+    if (!st.played[p].length) pl.insertAdjacentHTML("beforeend", ' <span class="note">—</span>');
+    st.played[p].forEach(a => { const c = cardEl(actCard(a), {small: true}); if (a.startsWith("JK")) c.title = actText(a); pl.appendChild(c); });
+    div.appendChild(pl);
+    // public void knowledge (what every other player — incl. the focus player — knows)
+    const vd = document.createElement("div"); vd.className = "voids";
+    const vs = ["D", "S", "C", "H"].filter(x => st.voids[p].has(x));
+    vd.innerHTML = '<span class="lab">' + (p === focus ? "соперники знают, что у вас нет:" : `${NAMES[focus]} знает, что нет:`) + '</span> ' +
+      (vs.length ? vs.map(x => `<span class="suitchip ${x === "D" || x === "H" ? "red" : ""}">${SUIT_SYM[x]}${x === "D" ? " (козырь)" : ""}</span>`).join(" ")
+                 : '<span class="note">ничего</span>');
+    div.appendChild(vd);
+    tbl.appendChild(div);
+  }
+
+  // trick area
+  const tr = document.getElementById("trick"); tr.innerHTML = "";
+  const showT = st.trick.length ? {cards: st.trick, winner: null} : st.lastTrick;
+  if (!showT) tr.innerHTML = '<span class="note">' + (S === 0 || ev[Math.max(0, S - 1)].type === "bid" ? "идут заказы" : "взяток нет") + "</span>";
+  else showT.cards.forEach((x, i) => {
+    const s = document.createElement("div"); s.className = "slot" + (showT.winner === x.p ? " winner" : "");
+    const c = cardEl(actCard(x.a)); if (S > 0 && ev[S - 1].type === "play" && i === showT.cards.length - 1) c.classList.add("played-now");
+    s.appendChild(c);
+    const tag = x.a.startsWith("JK") ? `<div class="tag">${actText(x.a).replace("🃏 ", "")}</div>` : "";
+    s.insertAdjacentHTML("beforeend", `<div class="who">${NAMES[x.p]}${showT.winner === x.p ? " — берёт" : ""}</div>${tag}`);
+    tr.appendChild(s);
+  });
+
+  // decision panel: the last move made (S-1); if S==0 show the next one
+  const dp = document.getElementById("decision");
+  const ei = S > 0 ? S - 1 : 0;
+  const e = ev[ei];
+  if (!e) { dp.innerHTML = ""; }
+  else {
+    const what = e.type === "bid" ? `заказывает <b>${e.a}</b>` : `ходит <b>${actText(e.a)}</b>`;
+    let head = `<h3>${S === 0 ? "Следующий ход: " : ""}${NAMES[e.p]} ${what}</h3>`;
+    if (e.type === "play") head += `<div class="note">до хода нужно было ещё взять: <b>${e.need}</b>${e.need < 0 ? " (уже перебор)" : e.need === 0 ? " (заказ набран — взятки не нужны)" : ""}</div>`;
+    if (e.forbidden !== undefined) head += `<div class="note">запрещено правилом сдающего: <b>${e.forbidden}</b></div>`;
+    if (e.forced) head += `<div class="note">единственный возможный ход</div>`;
+    let body = "";
+    if (e.opts.length) {
+      const mx = Math.max(...e.opts.map(o => Math.abs(o[1])), 1);
+      body = '<table class="opts"><tr><td class="note">вариант</td><td class="note">ожидание, очков</td><td></td></tr>' +
+        e.opts.map(o => {
+          const w = Math.round(Math.abs(o[1]) / mx * 100);
+          const lab = e.type === "bid" ? "заказ " + o[0] : actText(o[0]);
+          return `<tr class="${o[0] === e.a ? "chosen" : ""}"><td>${lab}</td><td class="${cls(o[1])}">${fmt(o[1])}</td>
+            <td class="barcell"><div class="bar ${o[1] < 0 ? "neg" : ""}" style="width:${w}%"></div></td></tr>`;
+        }).join("") + "</table>";
+    }
+    dp.innerHTML = head + body;
+  }
+
+  // log
+  const log = document.getElementById("log"); log.innerHTML = "";
+  let trickNo = 1;
+  ev.forEach((x, i) => {
+    const d = document.createElement("div"); d.className = (i === S - 1 ? "cur" : "");
+    let t = x.type === "bid" ? `${NAMES[x.p]}: заказ <b>${x.a}</b>` : `${NAMES[x.p]}: ${actText(x.a)}`;
+    if (x.trick_winner !== undefined) t += ` <span class="tw">→ взятка ${trickNo++}: ${NAMES[x.trick_winner]}</span>`;
+    d.innerHTML = t; d.onclick = () => { S = i + 1; render(); };
+    log.appendChild(d);
+  });
+  const curEl = log.querySelector(".cur"); if (curEl) curEl.scrollIntoView({block: "nearest"});
+}
+
+function init() {
+  document.getElementById("sub").textContent =
+    `модель ${DATA.spec} за всех ${N} игроков · ${DATA.games.length} партий · перебор = все взятые взятки, тёмная ×${DATA.rules.dark_multiplier}, правило сдающего с ${DATA.rules.hook_min_cards} карт`;
+  const f = document.getElementById("focus");
+  NAMES.forEach((n, i) => { const o = document.createElement("option"); o.value = i; o.textContent = n; f.appendChild(o); });
+  f.onchange = () => render(); document.getElementById("showall").onchange = () => render();
+  const go = d => { S += d; render(); };
+  document.getElementById("first").onclick = () => { S = 0; render(); };
+  document.getElementById("last").onclick = () => { S = 1e9; render(); };
+  document.getElementById("prev").onclick = () => go(-1);
+  document.getElementById("next").onclick = () => go(1);
+  document.getElementById("slider").oninput = e => { S = +e.target.value; render(); };
+  document.getElementById("nexttrick").onclick = () => {
+    const ev = DATA.games[G].deals[D].events; let i = S;
+    while (i < ev.length && ev[i].trick_winner === undefined) i++;
+    S = Math.min(ev.length, i + 1); render();
+  };
+  document.addEventListener("keydown", e => {
+    if (e.target.tagName === "SELECT") return;
+    if (e.key === "ArrowRight") go(1); else if (e.key === "ArrowLeft") go(-1);
+    else if (e.key === "Home") { S = 0; render(); } else if (e.key === "End") { S = 1e9; render(); }
+  });
+  render(true);
+}
+init();
+</script>
+</body>
+</html>
