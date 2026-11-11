@@ -101,7 +101,7 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
                 if s.phase == 2 and GAME:
                     sc = scores(s)
                     for p in range(n):
-                        margin = (sc[p] - (sum(sc) - sc[p]) / (n - 1)) / 10.0
+                        margin = (cfg["margin_w"] * (sc[p] - (sum(sc) - sc[p]) / (n - 1)) + cfg["own_w"] * sc[p]) / 10.0
                         for tr in sl["traj"][p]:
                             sl["gtraj"][p].append(tr + (margin,))
                         sl["totals"][p] += sc[p]
@@ -119,7 +119,7 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
                         for (x, a, ph, lab, margin) in sl["gtraj"][p]:
                             xs.append(x)
                             acts.append(a)
-                            rets.append(cfg["win_w"] * win + cfg["margin_w"] * margin)
+                            rets.append(cfg["win_w"] * win + margin)
                             phases.append(ph)
                             labs.append(lab if lab is not None else np.zeros(36, np.int8))
                     slots[i] = sl = new_slot()
@@ -227,7 +227,8 @@ def main(argv=None):
     ap.add_argument("--learner-threads", type=int, default=1)
     ap.add_argument("--game", action="store_true", help="play whole games; reward = win (+ deal margin shaping)")
     ap.add_argument("--win-w", type=float, default=3.0)
-    ap.add_argument("--margin-w", type=float, default=0.5)
+    ap.add_argument("--margin-w", type=float, default=0.5, help="weight of (own - mean opponents) deal score")
+    ap.add_argument("--own-w", type=float, default=0.0, help="weight of own deal score (skill anchor)")
     ap.add_argument("--features", default="v1", choices=["v1", "hist", "hist_oracle", "v1g"])
     ap.add_argument("--social", type=float, default=0.0, help="reward = own + social * mean(opponents)")
     ap.add_argument("--aux", type=float, default=0.0, help="weight of auxiliary hidden-card-location loss (0 = off)")
@@ -264,7 +265,7 @@ def main(argv=None):
     past_shared = make_shared()
     cfg = dict(hidden=a.hidden, batch_deals=a.batch_deals, eps=a.eps, p_heur=a.p_heur, p_heur2=a.p_heur2,
                p_past=a.p_past, chunk=4096, sync_every=50, aux=a.aux > 0, social=a.social,
-               features=a.features, game=a.game, win_w=a.win_w, margin_w=a.margin_w)
+               features=a.features, game=a.game, win_w=a.win_w, margin_w=a.margin_w, own_w=a.own_w)
     aux_heads = {}
     if a.aux > 0:
         for ph in phases:
