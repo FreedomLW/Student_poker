@@ -1,0 +1,5 @@
+teacher states 765175 (bid 80000), anchor states 60267
+epoch 0: bid teacher 1.0488 anchor 0.0043  play teacher 0.6102 anchor 0.0033
+epoch 1: bid teacher 1.0335 anchor 0.0052  play teacher 0.5863 anchor 0.0037
+epoch 2: bid teacher 1.0271 anchor 0.0057  play teacher 0.5754 anchor 0.0039
+saved runs/teacher/ftA
