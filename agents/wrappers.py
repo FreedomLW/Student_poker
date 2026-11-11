@@ -122,6 +122,17 @@ class WrapAgent(Agent):
                     est -= self.comp * (sum(prev) - len(prev) * o.n_cards / o.n)
                 return nearest_legal_bid(legal, est)
             return self.base.act(o, legal)
+        if m == "nowaste":  # still need tricks, my card cannot win this trick -> do not burn a higher card of the same suit
+            a = self.base.act(o, legal)
+            if a < 36 and o.t_players and o.bids[o.me] - o.won[o.me] > 0:
+                from .heuristic import card_key, trick_best_key
+                best = trick_best_key(o)
+                if card_key(a, o.trump, o.lead_suit) <= best:
+                    lower = [c for c in legal if c < 36 and c // 9 == a // 9 and c < a
+                             and card_key(c, o.trump, o.lead_suit) <= best]
+                    if lower:
+                        return min(lower)
+            return a
         if m == "deny":  # deny an opponent who needs (almost) all remaining tricks, once my own bid is made
             remaining = o.n_cards - o.tricks_done
             if o.bids[o.me] - o.won[o.me] <= 0 and len(legal) > 1:

@@ -51,6 +51,8 @@ def _kinds():
         kinds["biddist"] = BidDistAgent
     except ImportError:
         pass
+    from agents.endgame import EndgameAgent
+    kinds["endgame"] = EndgameAgent
     from agents.wrappers import WrapAgent
     kinds["wrap"] = WrapAgent
     from agents.hybrid import HybridAgent

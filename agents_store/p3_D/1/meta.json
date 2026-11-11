@@ -1,0 +1,10 @@
+{
+  "git_sha": "bea5543",
+  "date": "2026-11-11T08:27:48",
+  "rules_hash": "7e7cfce263bc",
+  "rules": "house_3p (over=taken, dark x1)",
+  "init": "p3_C",
+  "reward": "own deal score (non-cooperative)",
+  "eps_dark": 0.35,
+  "samples": "28.5M (run interrupted at 44 min)"
+}

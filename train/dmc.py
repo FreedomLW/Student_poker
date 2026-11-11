@@ -79,7 +79,11 @@ def actor(aid, shared, past_shared, cfg, out_q, stop):
             sl = dict(s=s)
         r = rng.random()
         roles = ["net"] * n
-        if r < cfg["p_heur"]:
+        if cfg.get("exploit"):
+            # exploiter: one learning seat, every other seat is the FROZEN target opponent
+            roles = ["past"] * n
+            roles[rng.randrange(n)] = "net"
+        elif r < cfg["p_heur"]:
             for p in rng.sample(range(n), rng.randint(1, 3)):
                 roles[p] = "heur2" if rng.random() < cfg["p_heur2"] else "heur"
         elif r < cfg["p_heur"] + cfg["p_past"]:
@@ -227,6 +231,8 @@ def main(argv=None):
     ap.add_argument("--init-play", default=None)
     ap.add_argument("--ckpt-minutes", type=float, default=10)
     ap.add_argument("--learner-threads", type=int, default=1)
+    ap.add_argument("--exploit-bid", default=None, help="EXPLOITER mode: frozen opponent bid net (all other seats)")
+    ap.add_argument("--exploit-play", default=None)
     ap.add_argument("--eps-dark", type=float, default=0.0, help="exploration rate for dark bids (0 = use --eps)")
     ap.add_argument("--game", action="store_true", help="play whole games; reward = win (+ deal margin shaping)")
     ap.add_argument("--win-w", type=float, default=3.0)
@@ -266,9 +272,13 @@ def main(argv=None):
 
     shared = make_shared()
     past_shared = make_shared()
+    if a.exploit_bid:
+        past_shared[0].load_state_dict(load_qnet(a.exploit_bid, in_dim=D).state_dict())
+        if a.separate:
+            past_shared[1].load_state_dict(load_qnet(a.exploit_play or a.exploit_bid, in_dim=D).state_dict())
     cfg = dict(hidden=a.hidden, batch_deals=a.batch_deals, eps=a.eps, p_heur=a.p_heur, p_heur2=a.p_heur2,
                p_past=a.p_past, chunk=4096, sync_every=50, aux=a.aux > 0, social=a.social,
-               features=a.features, game=a.game, eps_dark=a.eps_dark or a.eps, win_w=a.win_w, margin_w=a.margin_w, own_w=a.own_w)
+               features=a.features, game=a.game, exploit=bool(a.exploit_bid), eps_dark=a.eps_dark or a.eps, win_w=a.win_w, margin_w=a.margin_w, own_w=a.own_w)
     aux_heads = {}
     if a.aux > 0:
         for ph in phases:
@@ -388,6 +398,9 @@ def main(argv=None):
             tag = f"_{total // 1000}k"
             pb, pp = save_all(tag, samples=total, updates=upd)
             past_pool.append((pb, pp))
+            if a.exploit_bid:  # exploiter: opponents stay frozen
+                last_ck = now
+                continue
             cb, cp = random.choice(past_pool)
             past_shared[0].load_state_dict(load_qnet(cb).state_dict())
             if a.separate:
